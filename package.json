@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:build:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_windows.ps1",
     "tauri:build:mac": "bash scripts/build_macos.sh"
   },
   "dependencies": {
