@@ -84,6 +84,9 @@ pub fn create(app: &App, config: &AppConfig) -> tauri::Result<()> {
         settings,
         exit,
     });
+    #[cfg(target_os = "macos")]
+    let icon = menu_bar_icon()?;
+    #[cfg(not(target_os = "macos"))]
     let icon = app
         .default_window_icon()
         .cloned()
@@ -334,11 +337,22 @@ pub fn update_usage(app: &AppHandle, usage: &CodexUsage, config: &AppConfig) {
         #[cfg(target_os = "macos")]
         {
             let title = compact_menu_bar_title(config, &five_hour, &weekly);
+            // Keep a recognizable, purpose-built template icon beside the
+            // quota. Unlike the full-color app icon, this remains crisp and
+            // visible in both light and dark macOS menu bars.
+            if let Ok(icon) = menu_bar_icon() {
+                let _ = tray.set_icon_with_as_template(Some(icon), true);
+            }
             // Passing None means "leave the native title unset" and can retain
             // the previous title on macOS. An explicit empty title clears it.
             let _ = tray.set_title(Some(title));
         }
     }
+}
+
+#[cfg(target_os = "macos")]
+fn menu_bar_icon() -> tauri::Result<tauri::image::Image<'static>> {
+    tauri::image::Image::from_bytes(include_bytes!("../../icons/tray-icon.png"))
 }
 
 #[cfg(target_os = "macos")]

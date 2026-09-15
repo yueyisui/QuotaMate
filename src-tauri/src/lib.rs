@@ -16,7 +16,7 @@ use tauri_plugin_log::{Target, TargetKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Info)
@@ -97,6 +97,17 @@ pub fn run() {
             log::info!("QuotaMate {} started", env!("CARGO_PKG_VERSION"));
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app, event| {
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Reopen { .. } = event {
+            // A close request hides the main window so the menu bar monitor can
+            // keep running. Clicking the Dock icon must explicitly restore it.
+            if let Err(error) = windows::show_main(app, None) {
+                log::warn!("Unable to restore main window from Dock: {error}");
+            }
+        }
+    });
 }
