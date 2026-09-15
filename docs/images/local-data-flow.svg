@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-labelledby="title desc">
+  <title id="title">QuotaMate local data flow</title>
+  <desc id="desc">Codex CLI provides local quota data to QuotaMate, which presents it in the dashboard, tray, compact widget, and desktop pet.</desc>
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#242333"/><stop offset="1" stop-color="#1b1a26"/></linearGradient>
+    <linearGradient id="purple" x1="0" x2="1"><stop stop-color="#7048f4"/><stop offset="1" stop-color="#a184ff"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 9 3 0 6z" fill="#8d72ec"/></marker>
+  </defs>
+  <rect width="1200" height="300" rx="28" fill="#15141e"/>
+  <g font-family="Segoe UI, Microsoft YaHei, sans-serif">
+    <rect x="55" y="72" width="250" height="156" rx="20" fill="url(#panel)" stroke="#49465b"/>
+    <circle cx="180" cy="122" r="29" fill="#303041"/>
+    <path d="m164 123 11 11 22-26" fill="none" stroke="#52d0b3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="180" y="175" text-anchor="middle" fill="#f4f1fa" font-size="20" font-weight="700">Codex CLI</text>
+    <text x="180" y="199" text-anchor="middle" fill="#a7a2b3" font-size="13">Already installed &amp; signed in</text>
+
+    <path d="M320 150h160" stroke="#8d72ec" stroke-width="3" stroke-dasharray="7 7" marker-end="url(#arrow)"/>
+    <text x="400" y="132" text-anchor="middle" fill="#a894ee" font-size="13">local App Server</text>
+
+    <rect x="496" y="50" width="265" height="200" rx="24" fill="url(#purple)"/>
+    <rect x="526" y="79" width="54" height="54" rx="16" fill="#fff" opacity=".17"/>
+    <text x="553" y="117" text-anchor="middle" fill="white" font-size="30" font-weight="800">Q</text>
+    <text x="596" y="113" fill="white" font-size="23" font-weight="750">QuotaMate</text>
+    <text x="526" y="160" fill="#eee9ff" font-size="14">5-hour &amp; weekly quota</text>
+    <text x="526" y="187" fill="#eee9ff" font-size="14">Reset times &amp; reset cards</text>
+    <text x="526" y="214" fill="#eee9ff" font-size="14">Local config &amp; scheduler</text>
+
+    <path d="M777 150h112" stroke="#8d72ec" stroke-width="3" stroke-dasharray="7 7" marker-end="url(#arrow)"/>
+
+    <rect x="905" y="50" width="240" height="200" rx="24" fill="url(#panel)" stroke="#49465b"/>
+    <g fill="#f4f1fa" font-size="15" font-weight="600">
+      <text x="955" y="94">▣ Dashboard</text>
+      <text x="955" y="130">● System tray</text>
+      <text x="955" y="166">▬ Compact widget</text>
+      <text x="955" y="202">◆ Desktop pet</text>
+    </g>
+    <text x="1025" y="232" text-anchor="middle" fill="#7bd9c0" font-size="12">Stays on this computer</text>
+  </g>
+</svg>

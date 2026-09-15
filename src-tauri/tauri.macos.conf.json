@@ -1,0 +1,12 @@
+{
+  "identifier": "com.quotamate.desktop",
+  "app": {
+    "macOSPrivateApi": true
+  },
+  "bundle": {
+    "targets": ["app", "dmg"],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
+  }
+}
