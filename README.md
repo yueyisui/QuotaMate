@@ -8,6 +8,7 @@
     <img alt="macOS 10.15+" src="https://img.shields.io/badge/macOS-10.15%2B-000000?logo=apple" />
     <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri" />
     <img alt="本地优先" src="https://img.shields.io/badge/Data-Local%20first-24B47E" />
+    <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-F4C542.svg" /></a>
   </p>
   <p><a href="https://github.com/yueyisui/QuotaMate/releases/latest"><strong>下载最新版本</strong></a> · <a href="#第一次使用">第一次使用</a> · <a href="#从源码构建">从源码构建</a></p>
 </div>

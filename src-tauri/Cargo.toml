@@ -3,6 +3,7 @@ name = "quotamate"
 version = "0.1.0"
 description = "A lightweight Codex usage monitor and session scheduler for Windows and macOS"
 authors = ["QuotaMate contributors"]
+license = "MIT"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
