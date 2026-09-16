@@ -1,83 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
-  <title id="title">QuotaMate Compact Mode on macOS and Windows</title>
-  <desc id="desc">The macOS menu bar shows live Codex quota text and opens a detailed panel, while Windows uses a small draggable desktop widget.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">QuotaMate compact display on macOS and Windows</title>
+  <desc id="desc">A realistic macOS menu bar item with the QuotaMate icon and live quota, its detail panel, and the Windows floating compact widget.</desc>
   <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#12121b"/>
-      <stop offset="1" stop-color="#292044"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="0" x2="1">
-      <stop stop-color="#7147f5"/>
-      <stop offset="1" stop-color="#a887ff"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
-      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#07060d" flood-opacity=".6"/>
-    </filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0d1025"/><stop offset=".55" stop-color="#17133a"/><stop offset="1" stop-color="#27194e"/></linearGradient>
+    <linearGradient id="desktop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d8d9ff"/><stop offset=".52" stop-color="#9e83e9"/><stop offset="1" stop-color="#44257f"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#6d5dfc"/><stop offset="1" stop-color="#b56cf2"/></linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#34c987"/><stop offset="1" stop-color="#75dfa8"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#050611" flood-opacity=".42"/></filter>
+    <filter id="smallShadow" x="-30%" y="-50%" width="160%" height="200%"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#050611" flood-opacity=".25"/></filter>
   </defs>
+  <rect width="1200" height="680" rx="32" fill="url(#bg)"/>
+  <circle cx="1120" cy="86" r="155" fill="#7654ff" opacity=".11"/><circle cx="70" cy="620" r="190" fill="#36c7d9" opacity=".07"/>
+  <text x="52" y="62" fill="#fff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="28" font-weight="700">Compact mode, native to each platform</text>
+  <text x="52" y="94" fill="#a9afd1" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="16">Live quota stays visible without keeping the main window open</text>
 
-  <rect width="1200" height="560" rx="30" fill="url(#background)"/>
-  <circle cx="1100" cy="500" r="250" fill="#7248f5" opacity=".08"/>
-  <circle cx="85" cy="80" r="180" fill="#36c6cf" opacity=".04"/>
+  <g transform="translate(48 126)">
+    <rect width="740" height="502" rx="25" fill="url(#desktop)" filter="url(#shadow)"/>
+    <path d="M0 0h740v35H0z" fill="#f4f2f6" opacity=".94"/><path d="M0 35h740v1H0z" fill="#6d6285" opacity=".24"/>
+    <text x="18" y="23" fill="#1d1b24" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="15" font-weight="700">●</text>
+    <text x="43" y="23" fill="#1d1b24" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14" font-weight="700">Chrome</text>
+    <text x="105" y="23" fill="#1d1b24" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14">File</text><text x="137" y="23" fill="#1d1b24" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14">Edit</text><text x="170" y="23" fill="#1d1b24" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14">View</text>
+    <g transform="translate(424 7)" fill="none" stroke="#17151d" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2.5a8.5 8.5 0 1 0 6.1 14.4l3.4 3.4" stroke-width="2.2"/><path d="M10.5 6.2v4.6l3.1 2" stroke-width="1.8"/></g>
+    <text x="450" y="23" fill="#17151d" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14" font-weight="600">5h 50% · W 63%</text>
+    <text x="573" y="23" fill="#17151d" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14">⌁</text><text x="598" y="23" fill="#17151d" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14">▰</text><text x="629" y="23" fill="#17151d" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14">Tue 10:18</text>
+    <path d="M0 338c105-75 198-38 285-104 83-63 164-120 273-65 67 34 115 97 182 112v221H0z" fill="#35205f" opacity=".48"/><path d="M0 391c104-58 192-41 285-84 96-45 180-70 286-21 65 30 111 70 169 79v137H0z" fill="#160f31" opacity=".5"/>
 
-  <g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Microsoft YaHei, sans-serif">
-    <text x="58" y="67" fill="#f7f5fc" font-size="29" font-weight="700">Compact Mode</text>
-    <text x="58" y="98" fill="#aaa6b8" font-size="16">Live quota at a glance · Details only when you need them</text>
-
-    <g filter="url(#shadow)">
-      <rect x="58" y="133" width="1084" height="68" rx="17" fill="#ececf0"/>
-      <circle cx="86" cy="167" r="7" fill="#ff5f57"/>
-      <circle cx="109" cy="167" r="7" fill="#febc2e"/>
-      <circle cx="132" cy="167" r="7" fill="#28c840"/>
-      <text x="173" y="174" fill="#22222a" font-size="15" font-weight="650">QuotaMate</text>
-      <text x="762" y="174" fill="#22222a" font-size="15">⌁</text>
-      <text x="793" y="174" fill="#22222a" font-size="15">Wi-Fi</text>
-      <text x="860" y="174" fill="#22222a" font-size="15">◉</text>
-      <text x="887" y="174" fill="#22222a" font-size="16" font-weight="650">5h 99% · W 58%</text>
-      <text x="1064" y="174" fill="#22222a" font-size="15">09:04</text>
+    <g transform="translate(335 49)" filter="url(#smallShadow)">
+      <path d="M121 0l11-12 11 12z" fill="#fbfbfd"/><rect width="378" height="410" rx="20" fill="#f7f7fb" stroke="#fff"/>
+      <g transform="translate(20 20)">
+        <circle cx="17" cy="17" r="17" fill="#6d5dfc"/><path d="M17 8.5a8.5 8.5 0 1 0 6.2 14.3l4 4" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round"/><path d="M17 12v5l3.5 2.1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <text x="46" y="16" fill="#1a1b2b" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="15" font-weight="700">Codex Usage</text><rect x="46" y="23" width="44" height="20" rx="10" fill="#ece9ff"/><text x="58" y="37" fill="#6756d9" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="700">Plus</text>
+        <text x="296" y="21" fill="#777b93" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="19">↻</text><text x="327" y="21" fill="#777b93" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="19">×</text>
+      </g>
+      <g transform="translate(20 82)"><rect width="338" height="94" rx="15" fill="#fff" stroke="#e9e9f2"/><text x="16" y="27" fill="#252638" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14" font-weight="650">5-hour quota</text><text x="291" y="29" fill="#5f52d8" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="21" font-weight="750">50%</text><rect x="16" y="44" width="306" height="9" rx="4.5" fill="#ececf5"/><rect x="16" y="44" width="153" height="9" rx="4.5" fill="url(#accent)"/><text x="16" y="76" fill="#83879d" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="12">Resets in 2h 18m</text></g>
+      <g transform="translate(20 188)"><rect width="338" height="94" rx="15" fill="#fff" stroke="#e9e9f2"/><text x="16" y="27" fill="#252638" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14" font-weight="650">Weekly quota</text><text x="291" y="29" fill="#25a76d" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="21" font-weight="750">63%</text><rect x="16" y="44" width="306" height="9" rx="4.5" fill="#ececf5"/><rect x="16" y="44" width="193" height="9" rx="4.5" fill="url(#green)"/><text x="16" y="76" fill="#83879d" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="12">Resets Tuesday at 09:00</text></g>
+      <g transform="translate(20 294)"><rect width="338" height="55" rx="14" fill="#eeecff"/><text x="16" y="23" fill="#696c83" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="12">Reset credits</text><text x="16" y="42" fill="#342d74" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="14" font-weight="700">2 available</text><text x="306" y="34" text-anchor="end" fill="#7666dc" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="13" font-weight="650">Settings ›</text></g>
+      <text x="20" y="384" fill="#9a9daf" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="11">Click to open · closes automatically when focus moves away</text>
     </g>
+  </g>
 
-    <text x="58" y="234" fill="#9d79ff" font-size="13" font-weight="700" letter-spacing="1.2">macOS MENU BAR</text>
-    <text x="58" y="263" fill="#d5d1df" font-size="17">The selected quota stays visible beside the native menu bar icon.</text>
-    <text x="58" y="291" fill="#9691a3" font-size="15">Choose 5h, Weekly, or both — no desktop widget required.</text>
-
-    <g filter="url(#shadow)">
-      <path d="M817 217h292a17 17 0 0 1 17 17v261a17 17 0 0 1-17 17H817a17 17 0 0 1-17-17V234a17 17 0 0 1 17-17z" fill="#242330" stroke="#514c64"/>
-      <path d="m941 217 12-16 12 16" fill="#242330"/>
-      <rect x="822" y="239" width="32" height="32" rx="9" fill="url(#accent)"/>
-      <text x="838" y="261" text-anchor="middle" fill="white" font-size="17" font-weight="800">C</text>
-      <text x="866" y="260" fill="#f3f0f8" font-size="16" font-weight="700">Codex Usage</text>
-      <text x="1095" y="260" text-anchor="end" fill="#a887ff" font-size="15">↻</text>
-
-      <rect x="822" y="288" width="282" height="82" rx="12" fill="#2c2b39" stroke="#454253"/>
-      <text x="838" y="315" fill="#dcd9e6" font-size="14" font-weight="650">5 Hour</text>
-      <text x="1087" y="315" text-anchor="end" fill="#f4f1fa" font-size="19" font-weight="750">99% left</text>
-      <rect x="838" y="329" width="249" height="7" rx="4" fill="#514e5e"/>
-      <rect x="838" y="329" width="246" height="7" rx="4" fill="url(#accent)"/>
-      <text x="838" y="355" fill="#9e99ac" font-size="11">Resets in 2h 07m</text>
-
-      <rect x="822" y="383" width="282" height="82" rx="12" fill="#2c2b39" stroke="#454253"/>
-      <text x="838" y="410" fill="#dcd9e6" font-size="14" font-weight="650">Weekly</text>
-      <text x="1087" y="410" text-anchor="end" fill="#f4f1fa" font-size="19" font-weight="750">58% left</text>
-      <rect x="838" y="424" width="249" height="7" rx="4" fill="#514e5e"/>
-      <rect x="838" y="424" width="144" height="7" rx="4" fill="url(#accent)"/>
-      <text x="838" y="450" fill="#9e99ac" font-size="11">Resets in 5d 11h</text>
-
-      <text x="963" y="492" text-anchor="middle" fill="#9c96aa" font-size="12">Click for details · move away to close</text>
-    </g>
-
-    <g filter="url(#shadow)">
-      <rect x="58" y="350" width="456" height="82" rx="18" fill="#242330" stroke="#555069"/>
-      <rect x="80" y="371" width="40" height="40" rx="11" fill="url(#accent)"/>
-      <text x="100" y="398" text-anchor="middle" fill="white" font-size="21" font-weight="800">C</text>
-      <text x="143" y="398" fill="#aaa5b7" font-size="16">5h</text>
-      <text x="173" y="398" fill="#f5f2fa" font-size="22" font-weight="750">99%</text>
-      <path d="M258 373v36" stroke="#504c5d"/>
-      <text x="282" y="398" fill="#aaa5b7" font-size="16">W</text>
-      <text x="308" y="398" fill="#f5f2fa" font-size="22" font-weight="750">58%</text>
-    </g>
-
-    <text x="58" y="472" fill="#9d79ff" font-size="13" font-weight="700" letter-spacing="1.2">WINDOWS COMPACT WIDGET</text>
-    <text x="58" y="501" fill="#d5d1df" font-size="17">A tiny draggable desktop bar with click-to-expand details.</text>
-    <text x="58" y="529" fill="#9691a3" font-size="15">Its width follows the values you choose to display.</text>
+  <g transform="translate(826 126)">
+    <rect width="326" height="502" rx="25" fill="#11142c" stroke="#34375c" filter="url(#shadow)"/><text x="24" y="40" fill="#fff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="18" font-weight="700">Windows</text><text x="24" y="65" fill="#9da4ca" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="13">Floating compact widget</text>
+    <g transform="translate(24 103)" filter="url(#smallShadow)"><rect width="278" height="64" rx="18" fill="#f8f8fc" stroke="#fff"/><circle cx="34" cy="32" r="18" fill="#6758e8"/><text x="34" y="38" text-anchor="middle" fill="#fff" font-family="'Segoe UI',sans-serif" font-size="17" font-weight="800">C</text><text x="65" y="37" fill="#5e6076" font-family="'Segoe UI',sans-serif" font-size="14">5h</text><text x="88" y="37" fill="#202135" font-family="'Segoe UI',sans-serif" font-size="17" font-weight="750">50%</text><rect x="134" y="19" width="1" height="26" fill="#ddddea"/><text x="153" y="37" fill="#5e6076" font-family="'Segoe UI',sans-serif" font-size="14">W</text><text x="174" y="37" fill="#202135" font-family="'Segoe UI',sans-serif" font-size="17" font-weight="750">63%</text></g>
+    <g transform="translate(24 204)"><circle cx="8" cy="8" r="8" fill="#6e60ee"/><text x="26" y="13" fill="#d6d9ee" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="14">Click for details</text><circle cx="8" cy="49" r="8" fill="#43c58a"/><text x="26" y="54" fill="#d6d9ee" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="14">Drag anywhere</text><circle cx="8" cy="90" r="8" fill="#ebaf52"/><text x="26" y="95" fill="#d6d9ee" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="14">Right-click shortcuts</text></g>
+    <rect x="24" y="345" width="278" height="1" fill="#34375c"/><text x="24" y="382" fill="#fff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="15" font-weight="700">Same data, less interruption</text><text x="24" y="410" fill="#9da4ca" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="13">Choose 5h, weekly, or both.</text><text x="24" y="432" fill="#9da4ca" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="13">Compact mode and pet mode are</text><text x="24" y="454" fill="#9da4ca" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="13">mutually exclusive.</text>
   </g>
 </svg>
