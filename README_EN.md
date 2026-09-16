@@ -35,7 +35,7 @@ It reuses your existing Codex sign-in. There is no token to paste, no web scrapi
 Compact mode keeps only the numbers that matter. Show `5h`, `W`, or both. It is mutually exclusive with pet mode, so quota is never duplicated across the desktop.
 
 <p align="center">
-  <img src="docs/images/compact-mode-showcase.svg" width="100%" alt="QuotaMate's actual layout in the macOS menu bar and Windows compact widget" />
+  <img src="docs/images/status-bar-overview.png" width="100%" alt="QuotaMate keeps Codex quota visible in the macOS menu bar and a compact Windows desktop widget" />
 </p>
 
 ### macOS: native menu bar quota

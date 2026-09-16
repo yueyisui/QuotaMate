@@ -35,7 +35,7 @@ QuotaMate 是一个轻量的 Codex 额度助手。它读取本机 Codex CLI 返�
 简洁模式只保留最重要的数字。可以显示 `5h`、`W`，或同时显示两项；它与宠物模式互斥，避免桌面出现两套重复信息。
 
 <p align="center">
-  <img src="docs/images/compact-mode-showcase.svg" width="100%" alt="QuotaMate 在 macOS 菜单栏和 Windows 简洁浮窗中的真实布局示意" />
+  <img src="docs/images/status-bar-overview.png" width="100%" alt="QuotaMate 在 macOS 菜单栏和 Windows 简洁浮窗中常驻显示 Codex 额度" />
 </p>
 
 ### macOS：原生菜单栏额度
