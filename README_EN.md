@@ -62,6 +62,35 @@ In addition to the violet fox, dog, rocket, car, and robot, QuotaMate accepts tr
 - Animated GIFs retain their own animation; static custom art is not forced into artificial facial expressions.
 - Pet size, overall opacity, and always-on-top behavior are adjustable.
 
+## Compact Mode: unobtrusive, always visible
+
+Not everyone wants a character living on the desktop. Compact Mode keeps only the numbers that matter, making it ideal for focused work, presentations, and smaller screens. Show the frequently changing `5h` quota, the weekly quota, or both.
+
+<p align="center">
+  <img src="docs/images/compact-mode-showcase.svg" width="100%" alt="QuotaMate showing live quota in the macOS menu bar and a compact desktop widget on Windows" />
+</p>
+
+### macOS: quota pinned directly to the menu bar
+
+On macOS, enabling Compact Mode does not create another desktop window. QuotaMate writes the selected values into the native menu bar at the top-right of the screen, for example `5h 99% · W 58%`:
+
+- Keep the latest quota visible while working in a browser, terminal, editor, or any other app.
+- Choose `5h only`, `Weekly only`, or `Both`; the menu bar text updates immediately.
+- Click the QuotaMate menu bar icon to open a detailed panel with reset countdowns, exact times, account plan, reset cards, and the next Scheduler trigger.
+- Move the pointer away and the details panel closes automatically without covering your current app.
+- Closing the main window leaves QuotaMate in the menu bar. Combined with launch at startup, it works as an always-available quota gauge.
+
+### Windows: a desktop quota bar sized to its content
+
+On Windows, Compact Mode is a borderless desktop widget that shows only the values you select:
+
+- Collapsed width follows `5h`, `W`, or both, with no unnecessary empty space.
+- Click and release to expand full details; move the pointer away to return to the compact view.
+- Hold the left mouse button and move to drag without triggering expansion; lock the position if desired.
+- Right-click to open QuotaMate, switch to Desktop Pet, or close the widget.
+
+Compact Mode and Desktop Pet are mutually exclusive, preventing duplicate always-on-screen displays. The main dashboard can remain open alongside the selected mode so changes are visible immediately.
+
 ## More than a percentage
 
 Open the dashboard, Compact Widget details, or Desktop Pet details to see:
@@ -77,7 +106,7 @@ The plan comes from the official Codex App Server `planType` field. When the act
 
 | Capability | What it provides |
 | --- | --- |
-| Minimal quota display | Show 5h and/or Weekly directly in the macOS menu bar; Windows keeps the desktop widget. |
+| Minimal quota display | Keep selected values as native macOS menu bar text, or use the draggable, expandable Windows desktop bar. |
 | Local first | Reuses the existing Codex login, asks for no authentication token, and needs no additional service. |
 | Tray controls | Keep QuotaMate running after closing the window; refresh, switch modes, manage startup, or exit quickly. |
 | Multiple monitors | Move the main window and floating displays between screens; floating positions are remembered. |
