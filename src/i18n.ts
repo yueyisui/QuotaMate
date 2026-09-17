@@ -36,7 +36,7 @@ const en = {
   remaining: "left", resetUnavailable: "Reset time unavailable", resetsDays: "Resets in {days}d {hours}h", resetsHours: "Resets in {hours}h {minutes}m",
   quotaUnavailable: "Unavailable", quotaMissing: "This quota window was not returned by Codex.",
   energyFull: "Fully charged", energyGood: "Doing well", energyLow: "Low energy", energyEmpty: "Needs charging",
-  petCat: "Violet fox", petDog: "Dog", petRocket: "Rocket", petCar: "Car", petRobot: "Robot", customPetAlt: "Custom desktop pet",
+  petCat: "Violet fox", petDog: "Dog", petRocket: "Rocket", petCar: "Car", petRobot: "Robot", petTiga: "Ultraman Tiga", customPetAlt: "Custom desktop pet",
 } as const;
 
 type MessageKey = keyof typeof en;
@@ -75,7 +75,7 @@ const zh: Record<MessageKey, string> = {
   remaining: "剩余", resetUnavailable: "暂无重置时间", resetsDays: "{days} 天 {hours} 小时后重置", resetsHours: "{hours} 小时 {minutes} 分钟后重置",
   quotaUnavailable: "不可用", quotaMissing: "Codex 没有返回这项额度数据。",
   energyFull: "能量充足", energyGood: "状态良好", energyLow: "能量偏低", energyEmpty: "需要充能",
-  petCat: "紫色小狐", petDog: "小狗", petRocket: "火箭", petCar: "汽车", petRobot: "机器人", customPetAlt: "自定义桌面宠物",
+  petCat: "紫色小狐", petDog: "小狗", petRocket: "火箭", petCar: "汽车", petRobot: "机器人", petTiga: "迪迦奥特曼", customPetAlt: "自定义桌面宠物",
 };
 
 export function resolvedLanguage(preference: LanguagePreference | null | undefined): "zh-CN" | "en" {
@@ -98,6 +98,6 @@ export function localeName(preference: LanguagePreference | null | undefined) {
 }
 
 export function petName(preference: LanguagePreference | null | undefined, id: string) {
-  const key = ({ cat: "petCat", dog: "petDog", rocket: "petRocket", car: "petCar", robot: "petRobot" } as const)[id as "cat"];
+  const key = ({ cat: "petCat", dog: "petDog", rocket: "petRocket", car: "petCar", robot: "petRobot", tiga: "petTiga" } as const)[id as "cat"];
   return key ? translate(preference, key) : id;
 }

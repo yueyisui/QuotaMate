@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+APP_VERSION="$(node -p "require('$ROOT_DIR/package.json').version")"
 STAGE_DIR="$(mktemp -d /private/tmp/quotamate-macos-stage.XXXXXX)"
 TARGET_DIR="/private/tmp/quotamate-macos-target"
 OUTPUT_DIR="$ROOT_DIR/artifacts/macos-arm64"
@@ -52,6 +53,6 @@ CARGO_TARGET_DIR="$TARGET_DIR" node "$ROOT_DIR/node_modules/@tauri-apps/cli/taur
 
 mkdir -p "$OUTPUT_DIR"
 ditto "$TARGET_DIR/release/bundle/macos/QuotaMate.app" "$OUTPUT_DIR/QuotaMate.app"
-cp "$TARGET_DIR/release/bundle/dmg/QuotaMate_0.1.0_aarch64.dmg" "$OUTPUT_DIR/QuotaMate_0.1.0_aarch64.dmg"
+cp "$TARGET_DIR/release/bundle/dmg/QuotaMate_${APP_VERSION}_aarch64.dmg" "$OUTPUT_DIR/QuotaMate_${APP_VERSION}_aarch64.dmg"
 
 echo "macOS bundles are available in $OUTPUT_DIR"

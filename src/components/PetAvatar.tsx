@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import type { CodexUsage } from "../types";
 import { petName, translate, type LanguagePreference } from "../i18n";
 
-export type BuiltInPet = "cat" | "dog" | "rocket" | "car" | "robot";
+export type BuiltInPet = "cat" | "dog" | "rocket" | "car" | "robot" | "tiga";
 
 export const PET_PRESETS: { id: BuiltInPet; label: string }[] = [
   { id: "cat", label: "紫色小狐" },
@@ -10,6 +10,7 @@ export const PET_PRESETS: { id: BuiltInPet; label: string }[] = [
   { id: "rocket", label: "火箭" },
   { id: "car", label: "汽车" },
   { id: "robot", label: "机器人" },
+  { id: "tiga", label: "迪迦" },
 ];
 
 export function usageEnergy(usage: CodexUsage) {
@@ -33,7 +34,15 @@ interface Props {
 
 export function PetAvatar({ preset, energy, className = "", language }: Props) {
   const state = energyState(energy, language);
-  const style = { "--pet-energy": state.color, "--pet-level": `${energy}%` } as CSSProperties;
+  const timerMix = Math.max(0, Math.min(1, energy / 100));
+  const timerColor = `rgb(${Math.round(237 + (79 - 237) * timerMix)} ${Math.round(76 + (124 - 76) * timerMix)} ${Math.round(91 + (255 - 91) * timerMix)})`;
+  const alertDuration = `${Math.max(.34, .34 + energy * .026).toFixed(2)}s`;
+  const style = {
+    "--pet-energy": state.color,
+    "--pet-level": `${energy}%`,
+    "--tiga-timer": timerColor,
+    "--tiga-alert-duration": alertDuration,
+  } as CSSProperties;
   const common = {
     className: `pet-svg pet-svg--${preset} pet-svg--${state.key} ${className}`,
     style,
@@ -45,6 +54,7 @@ export function PetAvatar({ preset, energy, className = "", language }: Props) {
   if (preset === "rocket") return <Rocket {...common} energy={energy} />;
   if (preset === "car") return <Car {...common} energy={energy} />;
   if (preset === "robot") return <Robot {...common} energy={energy} />;
+  if (preset === "tiga") return <Tiga {...common} energy={energy} />;
   return <Cat {...common} energy={energy} />;
 }
 
@@ -128,5 +138,25 @@ function Robot({ energy, ...props }: SvgProps) {
     <Face energy={energy} y={78} />
     <Meter energy={energy} y={132} />
     <path d="M42 91H27v33m131-33h15v33" className="pet-arm" />
+  </svg>;
+}
+
+function Tiga({ energy: _energy, ...props }: SvgProps) {
+  return <svg {...props}>
+    <circle cx="100" cy="101" r="78" className="pet-aura tiga-aura" />
+    <g className="tiga-pose">
+      <path d="M73 113 58 178l19 4 23-49 23 49 19-4-15-65z" className="tiga-suit" />
+      <path d="m75 117-9 57 12 3 22-44 22 44 12-3-9-57z" className="tiga-leg-stripe" />
+      <path d="M73 77 41 114l12 14 28-25m46-26 32 37-12 14-28-25" className="tiga-arm" />
+      <path d="M66 65q34-24 68 0l-8 61q-26 25-52 0z" className="tiga-suit" />
+      <path d="M69 72q18 10 31 38 13-28 31-38l-4 27-17 23H90L73 99z" className="tiga-red" />
+      <path d="m74 65 26 33 26-33-10-9-16 22-16-22z" className="tiga-purple" />
+      <path d="M70 46q4-30 30-34 26 4 30 34l-9 25q-21 18-42 0z" className="tiga-helmet" />
+      <path d="m100 13-7 27 7 12 7-12z" className="tiga-crest" />
+      <path d="m76 45 19 4-13 12-10-3m52-13-19 4 13 12 10-3" className="tiga-eye" />
+      <path d="M91 68q9 5 18 0" className="tiga-mouth" />
+      <circle cx="100" cy="104" r="10" className="tiga-timer-ring" />
+      <circle cx="100" cy="104" r="6" className="tiga-timer" />
+    </g>
   </svg>;
 }

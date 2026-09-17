@@ -74,7 +74,7 @@ export interface AppConfig {
   petEnabled: boolean;
   petImage: string | null;
   petImageHistory: PetImageRecord[];
-  petPreset: "cat" | "dog" | "rocket" | "car" | "robot" | "custom";
+  petPreset: "cat" | "dog" | "rocket" | "car" | "robot" | "tiga" | "custom";
   petScale: number;
   petPosition: WindowPosition | null;
   petAlwaysOnTop: boolean;

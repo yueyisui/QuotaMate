@@ -106,7 +106,7 @@ impl AppConfig {
         self.opacity = self.opacity.clamp(0.35, 1.0);
         if !matches!(
             self.pet_preset.as_str(),
-            "cat" | "dog" | "rocket" | "car" | "robot" | "custom"
+            "cat" | "dog" | "rocket" | "car" | "robot" | "tiga" | "custom"
         ) {
             self.pet_preset = "cat".into();
         }
@@ -281,6 +281,16 @@ mod tests {
         };
         config.normalize();
         assert_eq!(config.language, "system");
+    }
+
+    #[test]
+    fn built_in_tiga_preset_is_preserved() {
+        let mut config = AppConfig {
+            pet_preset: "tiga".into(),
+            ..AppConfig::default()
+        };
+        config.normalize();
+        assert_eq!(config.pet_preset, "tiga");
     }
 
     #[test]

@@ -1,6 +1,6 @@
 [package]
 name = "quotamate"
-version = "0.1.0"
+version = "0.1.1"
 description = "A lightweight Codex usage monitor and session scheduler for Windows and macOS"
 authors = ["QuotaMate contributors"]
 license = "MIT"
