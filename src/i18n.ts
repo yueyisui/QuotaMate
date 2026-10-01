@@ -4,6 +4,7 @@ export type LanguagePreference = AppConfig["language"];
 
 const en = {
   liveSnapshot: "LIVE LOCAL SNAPSHOT", codexUsage: "Codex Usage", refresh: "Refresh",
+  currentAccount: "Current Codex account", accountUnknown: "Not provided by Codex",
   connecting: "Connecting to Codex", unavailable: "Codex unavailable", waitingSnapshot: "Waiting for the first rate-limit snapshot.",
   fiveHour: "5 Hour", weekly: "Weekly", accountPlan: "Codex plan", planUnavailable: "Not provided", nextTrigger: "Next trigger", lastUpdated: "Last updated", none: "None",
   resetCredits: "Quota reset cards", resetCardsAvailable: "{count} available", resetCreditsUnavailable: "Not provided for this account",
@@ -20,10 +21,10 @@ const en = {
   seconds30: "30 seconds", minute1: "1 minute", minutes2: "2 minutes", minutes5: "5 minutes",
   showFiveHour: "Show 5-hour window", showWeekly: "Show weekly window", showCountdown: "Show reset countdown",
   display: "Display", mutuallyExclusive: "Compact Widget and Desktop Pet are mutually exclusive; only one can be active.",
-  enableCompact: "Enable Compact Mode", compactContent: "Compact content", compactContentDesc: "Collapsed width follows the selected content.", compactContentDescMac: "The selected values appear directly in the macOS menu bar.",
+  enableCompact: "Enable Compact Mode", compactContent: "Compact content", compactContentDesc: "Only reported windows are shown; falls back to an available window.", compactContentDescMac: "Only reported windows appear in the menu bar; falls back to an available window.",
   onlyFiveHour: "5h only", onlyWeekly: "Weekly only", showAll: "Both", lockCompact: "Lock compact position",
   enablePet: "Enable Desktop Pet", petAlwaysTop: "Pet always on top", builtInPets: "Built-in pets",
-  petStateDesc: "Expression and energy effects follow the 5-hour quota, falling back to weekly when unavailable.", customPet: "Custom pet image", currentUsing: "Currently in use",
+  petStateDesc: "Energy follows the 5-hour quota, then weekly or another reported window. Missing data is not zero quota.", customPet: "Custom pet image", currentUsing: "Currently in use",
   savedSelect: "Saved; choose again to use", formats: "Transparent PNG, WebP, and GIF supported", chooseImage: "Choose image…",
   customPetHistory: "Custom image history", customPetHistoryDesc: "Select a previously imported image or remove it.", importedEarlier: "Earlier import", removeImage: "Remove image", deleteImageConfirm: "Remove this image from history and delete its local copy?",
   petScale: "Pet scale", opacity: "Opacity", language: "Language", languageDesc: "System follows your operating system language.",
@@ -35,6 +36,8 @@ const en = {
   compactDrag: "Drag widget", collapse: "Collapse", unlock: "Unlock position", lock: "Lock position", close: "Close", loading: "Connecting to QuotaMate…",
   remaining: "left", resetUnavailable: "Reset time unavailable", resetsDays: "Resets in {days}d {hours}h", resetsHours: "Resets in {hours}h {minutes}m",
   quotaUnavailable: "Unavailable", quotaMissing: "This quota window was not returned by Codex.",
+  quotaNotReported: "Codex has not reported any quota windows for this account. This does not mean unlimited usage.",
+  quotaWaiting: "Awaiting data", quotaWindowHours: "{hours} Hour", quotaWindowMinutes: "{minutes} Minutes",
   energyFull: "Fully charged", energyGood: "Doing well", energyLow: "Low energy", energyEmpty: "Needs charging",
   petCat: "Violet fox", petDog: "Dog", petRocket: "Rocket", petCar: "Car", petRobot: "Robot", petTiga: "Ultraman Tiga", customPetAlt: "Custom desktop pet",
 } as const;
@@ -43,6 +46,7 @@ type MessageKey = keyof typeof en;
 
 const zh: Record<MessageKey, string> = {
   liveSnapshot: "本机实时数据", codexUsage: "Codex 额度", refresh: "刷新",
+  currentAccount: "当前 Codex 账号", accountUnknown: "Codex 暂未提供",
   connecting: "正在连接 Codex", unavailable: "Codex 暂不可用", waitingSnapshot: "正在等待首次额度数据。",
   fiveHour: "5 小时", weekly: "一周", accountPlan: "Codex 等级", planUnavailable: "暂未返回", nextTrigger: "下次触发", lastUpdated: "更新时间", none: "无",
   resetCredits: "额度重置卡", resetCardsAvailable: "剩余 {count} 张", resetCreditsUnavailable: "此账号暂未返回重置卡信息",
@@ -59,10 +63,10 @@ const zh: Record<MessageKey, string> = {
   seconds30: "30 秒", minute1: "1 分钟", minutes2: "2 分钟", minutes5: "5 分钟",
   showFiveHour: "显示 5 小时额度", showWeekly: "显示一周额度", showCountdown: "显示重置倒计时",
   display: "桌面显示", mutuallyExclusive: "简洁模式和桌面宠物互斥，同时只能启用一种。",
-  enableCompact: "启用简洁模式", compactContent: "简洁模式内容", compactContentDesc: "收起后的宽度会跟随所选内容。", compactContentDescMac: "所选额度会直接显示在 macOS 菜单栏。",
+  enableCompact: "启用简洁模式", compactContent: "简洁模式内容", compactContentDesc: "只显示账号实际返回的窗口；所选窗口缺失时自动使用可用额度。", compactContentDescMac: "菜单栏只显示实际返回的窗口；所选窗口缺失时自动使用可用额度。",
   onlyFiveHour: "仅 5h", onlyWeekly: "仅一周", showAll: "全部", lockCompact: "锁定简洁模式位置",
   enablePet: "启用桌面宠物", petAlwaysTop: "宠物保持置顶", builtInPets: "内置宠物",
-  petStateDesc: "表情和能量效果以 5 小时额度为准；无 5 小时数据时使用一周额度。", customPet: "自定义宠物图片", currentUsing: "当前正在使用",
+  petStateDesc: "能量优先使用 5 小时额度，其次是一周或其他已返回窗口；未返回数据不代表额度为零。", customPet: "自定义宠物图片", currentUsing: "当前正在使用",
   savedSelect: "已保存，可再次选择使用", formats: "支持透明 PNG、WebP 和 GIF", chooseImage: "选择图片…",
   customPetHistory: "自定义图片历史", customPetHistoryDesc: "可重新选择以前导入的图片，或删除本地副本。", importedEarlier: "较早导入", removeImage: "删除图片", deleteImageConfirm: "确定从历史记录中移除并删除这张本地图片吗？",
   petScale: "宠物大小", opacity: "透明度", language: "语言", languageDesc: "跟随系统时使用操作系统显示语言。",
@@ -74,6 +78,8 @@ const zh: Record<MessageKey, string> = {
   compactDrag: "拖动简洁条", collapse: "收起", unlock: "解锁位置", lock: "锁定位置", close: "关闭", loading: "正在连接 QuotaMate…",
   remaining: "剩余", resetUnavailable: "暂无重置时间", resetsDays: "{days} 天 {hours} 小时后重置", resetsHours: "{hours} 小时 {minutes} 分钟后重置",
   quotaUnavailable: "不可用", quotaMissing: "Codex 没有返回这项额度数据。",
+  quotaNotReported: "Codex 暂未返回此账号的额度窗口，这不代表额度无限。",
+  quotaWaiting: "等待数据", quotaWindowHours: "{hours} 小时", quotaWindowMinutes: "{minutes} 分钟",
   energyFull: "能量充足", energyGood: "状态良好", energyLow: "能量偏低", energyEmpty: "需要充能",
   petCat: "紫色小狐", petDog: "小狗", petRocket: "火箭", petCar: "汽车", petRobot: "机器人", petTiga: "迪迦奥特曼", customPetAlt: "自定义桌面宠物",
 };

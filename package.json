@@ -1,12 +1,13 @@
 {
   "name": "quotamate",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test:quota": "node --test scripts/quota.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:build:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_windows.ps1",

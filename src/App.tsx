@@ -10,6 +10,7 @@ import type { BuiltInPet } from "./components/PetAvatar";
 import { useAppData } from "./hooks/useAppData";
 import { localeName, petName, translator, type LanguagePreference } from "./i18n";
 import { backend } from "./services/backend";
+import { quotaShortLabel, quotaWindows } from "./services/quota";
 import type { AppConfig, CodexUsage, PetImageHistoryEntry, Trigger } from "./types";
 
 type Page = "usage" | "scheduler" | "settings" | "about";
@@ -157,16 +158,38 @@ function UsageContent() {
       )}
       {error && <div className="status-banner status-banner--unavailable">{error}</div>}
       <div className="usage-stack">
-        {config.showFiveHour && <UsageCard title={t("fiveHour")} shortTitle="5h" window={usage.fiveHour} showCountdown={config.showResetCountdown} language={config.language} />}
-        {config.showWeekly && <UsageCard title={t("weekly")} shortTitle="W" window={usage.weekly} showCountdown={config.showResetCountdown} language={config.language} />}
+        <QuotaCards usage={usage} config={config} showFiveHour={config.showFiveHour} showWeekly={config.showWeekly} />
       </div>
       <ResetCreditsCard credits={usage.rateLimitResetCredits} language={config.language} />
       <div className="facts-grid">
+        <div><span>{t("currentAccount")}</span><strong>{usage.accountLabel ?? t("accountUnknown")}</strong></div>
         <div><span>{t("nextTrigger")}</span><strong>{nextTrigger(config, t("none"))}</strong></div>
         <div><span>{t("lastUpdated")}</span><strong>{formatLastUpdated(usage.lastUpdated, config.language)}</strong></div>
       </div>
     </div>
   );
+}
+
+function quotaTitle(windowMinutes: number, language: LanguagePreference) {
+  const t = translator(language);
+  if (windowMinutes === 300) return t("fiveHour");
+  if (windowMinutes === 10080) return t("weekly");
+  return windowMinutes % 60 === 0
+    ? t("quotaWindowHours", { hours: windowMinutes / 60 })
+    : t("quotaWindowMinutes", { minutes: windowMinutes });
+}
+
+function QuotaCards({ usage, config, showFiveHour = true, showWeekly = true }: {
+  usage: CodexUsage; config: AppConfig; showFiveHour?: boolean; showWeekly?: boolean;
+}) {
+  const windows = quotaWindows(usage, showFiveHour, showWeekly);
+  const t = translator(config.language);
+  if (!showFiveHour && !showWeekly) return null;
+  if (!windows.length) return <p className="quota-note" role="status">{usage.status === "available"
+    ? t("quotaNotReported") : usage.status === "connecting" ? t("waitingSnapshot") : usage.error ?? t("unavailable")}</p>;
+  return windows.map((window) => <UsageCard key={window.windowMinutes}
+    title={quotaTitle(window.windowMinutes, config.language)} shortTitle={quotaShortLabel(window)}
+    window={window} showCountdown={config.showResetCountdown} language={config.language} />);
 }
 
 function SchedulerPage() {
@@ -347,30 +370,33 @@ function CompactWidget() {
   const { usage, config, saveConfig } = useAppData();
   const [expanded, setExpanded] = useState(false);
   const t = translator(config?.language);
+  const visibleWindows = usage && config ? quotaWindows(usage, config.compactShowFiveHour, config.compactShowWeekly) : [];
+  const visibleCount = visibleWindows.length;
+  useEffect(() => {
+    if (usage && config) void backend.setCompactExpanded(expanded);
+  }, [visibleCount, expanded, Boolean(usage), Boolean(config)]);
   useEffect(() => { const promise = listen("compact-collapse", () => setExpanded(false)); return () => { void promise.then((unlisten) => unlisten()); }; }, []);
   const expand = (next: boolean) => {
     if (expanded === next) return;
     setExpanded(next);
-    void backend.setCompactExpanded(next);
   };
   const collapsedGesture = useClickOrDrag(!expanded, !config?.compactWidgetLocked, () => expand(true));
   if (!usage || !config) return <Loading />;
-  const value = (amount: number | undefined) => amount === undefined ? "—" : `${Math.round(amount)}%`;
   return (
     <div className={`compact-widget floating-surface ${expanded ? "compact-widget--expanded" : ""} ${config.compactWidgetLocked ? "compact-widget--locked" : ""}`} style={{ opacity: config.opacity }} {...collapsedGesture} onMouseLeave={() => expand(false)} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); void backend.showFloatingContextMenu("compact"); }}>
       {!expanded ? <div className="compact-collapsed">
         <span className="compact-logo">C</span>
-        {config.compactShowFiveHour && <span>5h <strong>{value(usage.fiveHour?.remainingPercent)}</strong></span>}
-        {config.compactShowFiveHour && config.compactShowWeekly && <i />}
-        {config.compactShowWeekly && <span>W <strong>{value(usage.weekly?.remainingPercent)}</strong></span>}
+        {visibleWindows.map((window, index) => <span className="compact-quota" key={window.windowMinutes}>
+          {index > 0 && <i />}{quotaShortLabel(window)} <strong>{Math.round(window.remainingPercent)}%</strong>
+        </span>)}
+        {!visibleCount && <span>{t("quotaWaiting")}</span>}
       </div> : <div className="compact-details">
         <div className="compact-details__bar" data-tauri-drag-region><div><span className="compact-logo">C</span><strong>{t("codexUsage")}</strong><span className="plan-badge plan-badge--compact">{formatPlan(usage.planType, t("planUnavailable"))}</span></div><div>
           <button title={t("collapse")} onClick={(event) => { event.stopPropagation(); expand(false); }}>⌄</button>
           <button title={config.compactWidgetLocked ? t("unlock") : t("lock")} onClick={(event) => { event.stopPropagation(); void saveConfig({ ...config, compactWidgetLocked: !config.compactWidgetLocked }); }}>{config.compactWidgetLocked ? "●" : "○"}</button>
           <button title={t("close")} onClick={(event) => { event.stopPropagation(); void backend.disableDisplay("compact"); }}>×</button>
         </div></div>
-        <UsageCard title={t("fiveHour")} shortTitle="5h" window={usage.fiveHour} showCountdown={config.showResetCountdown} language={config.language} />
-        <UsageCard title={t("weekly")} shortTitle="W" window={usage.weekly} showCountdown={config.showResetCountdown} language={config.language} />
+        <QuotaCards usage={usage} config={config} />
         <ResetCreditsCard credits={usage.rateLimitResetCredits} language={config.language} compact />
         <div className="compact-facts"><div><span>{t("nextTrigger")}</span><strong>{nextTrigger(config, t("none"))}</strong></div><div><span>{t("lastUpdated")}</span><strong>{formatLastUpdated(usage.lastUpdated, config.language)}</strong></div></div>
         <button className="text-button" onClick={(event) => { event.stopPropagation(); void backend.showWindow("settings"); }}>{t("settings")}</button>
@@ -392,8 +418,7 @@ function MenuBarPanel() {
         <div><span className="compact-logo">C</span><strong>{t("codexUsage")}</strong><span className="plan-badge plan-badge--compact">{formatPlan(usage.planType, t("planUnavailable"))}</span></div>
         <div><button title={t("refresh")} onClick={refresh}>↻</button><button title={t("close")} onClick={() => void backend.hideMenuBarPanel()}>×</button></div>
       </div>
-      <UsageCard title={t("fiveHour")} shortTitle="5h" window={usage.fiveHour} showCountdown={config.showResetCountdown} language={config.language} />
-      <UsageCard title={t("weekly")} shortTitle="W" window={usage.weekly} showCountdown={config.showResetCountdown} language={config.language} />
+      <QuotaCards usage={usage} config={config} />
       <ResetCreditsCard credits={usage.rateLimitResetCredits} language={config.language} compact />
       <div className="compact-facts"><div><span>{t("nextTrigger")}</span><strong>{nextTrigger(config, t("none"))}</strong></div><div><span>{t("lastUpdated")}</span><strong>{formatLastUpdated(usage.lastUpdated, config.language)}</strong></div></div>
       <button className="text-button" onClick={openSettings}>{t("settings")}</button>
@@ -422,15 +447,18 @@ function DesktopPet() {
   if (!usage || !config) return <Loading />;
   const energy = usageEnergy(usage);
   const state = energyState(energy, config.language);
+  const [primaryWindow, secondaryWindow] = quotaWindows(usage);
+  const primaryLabel = !primaryWindow ? t("codexUsage")
+    : primaryWindow.windowMinutes === 10080 ? t("weekly") : quotaShortLabel(primaryWindow);
   const preset = config.petPreset === "custom" ? "cat" : config.petPreset as BuiltInPet;
   const usesCustomImage = config.petPreset === "custom" && image;
   return (
     <div className={`pet-window pet-window--${state.key} ${expanded ? "pet-window--expanded" : ""}`} style={{ opacity: config.opacity, "--pet-energy": state.color } as React.CSSProperties} {...collapsedGesture} onMouseLeave={collapseExpanded} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); void backend.showFloatingContextMenu("pet"); }}>
       <div className="pet-toolbar" data-tauri-drag-region={expanded ? true : undefined}><span>⠿</span><button data-no-window-gesture title={t("close")} onClick={() => void backend.disableDisplay("pet")}>×</button></div>
-      {!expanded && <div className="pet-quota pet-quota--weekly"><span>{t("weekly")}</span><strong>{usage.weekly ? `${Math.round(usage.weekly.remainingPercent)}%` : "—"}</strong></div>}
+      {!expanded && secondaryWindow && <div className="pet-quota pet-quota--weekly"><span>{quotaTitle(secondaryWindow.windowMinutes, config.language)}</span><strong>{Math.round(secondaryWindow.remainingPercent)}%</strong></div>}
       <button className={`pet-character ${usesCustomImage ? "pet-character--custom" : ""}`} aria-label={usesCustomImage ? t("customPetAlt") : t("codexUsage")}>{usesCustomImage ? <span className="custom-pet-stage" style={{ backgroundImage: `url("${image}")` }} /> : <PetAvatar preset={preset} energy={energy} language={config.language} />}</button>
-      {!expanded ? <div className="pet-quota pet-quota--five"><span>5h</span><strong>{usage.fiveHour ? `${Math.round(usage.fiveHour.remainingPercent)}%` : "—"}</strong><small>{state.label}</small></div> : (
-        <div className="pet-details floating-surface"><div className="pet-details__title"><div><span className="pet-details__heading"><strong>{t("codexUsage")}</strong><span className="plan-badge plan-badge--compact">{formatPlan(usage.planType, t("planUnavailable"))}</span></span><small style={{ color: state.color }}>{state.label} · {Math.round(energy)}%</small></div><div><button title={t("collapse")} onClick={toggleExpanded}>⌄</button><button title={t("refresh")} onClick={refresh}>↻</button></div></div><UsageCard title={t("fiveHour")} shortTitle="5h" window={usage.fiveHour} language={config.language} /><UsageCard title={t("weekly")} shortTitle="W" window={usage.weekly} language={config.language} /><ResetCreditsCard credits={usage.rateLimitResetCredits} language={config.language} compact /><div className="pet-next"><span>{t("nextTrigger")}</span><strong>{nextTrigger(config, t("none"))}</strong></div><button className="text-button" onClick={() => void backend.showWindow("settings")}>{t("settings")}</button></div>
+      {!expanded ? <div className="pet-quota pet-quota--five"><span>{primaryLabel}</span>{primaryWindow && <strong>{Math.round(primaryWindow.remainingPercent)}%</strong>}<small>{state.label}</small></div> : (
+        <div className="pet-details floating-surface"><div className="pet-details__title"><div><span className="pet-details__heading"><strong>{t("codexUsage")}</strong><span className="plan-badge plan-badge--compact">{formatPlan(usage.planType, t("planUnavailable"))}</span></span><small style={{ color: state.color }}>{state.label}{energy !== null && ` · ${Math.round(energy)}%`}</small></div><div><button title={t("collapse")} onClick={toggleExpanded}>⌄</button><button title={t("refresh")} onClick={refresh}>↻</button></div></div><QuotaCards usage={usage} config={config} /><ResetCreditsCard credits={usage.rateLimitResetCredits} language={config.language} compact /><div className="pet-next"><span>{t("nextTrigger")}</span><strong>{nextTrigger(config, t("none"))}</strong></div><button className="text-button" onClick={() => void backend.showWindow("settings")}>{t("settings")}</button></div>
       )}
     </div>
   );

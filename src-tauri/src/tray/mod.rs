@@ -9,7 +9,7 @@ use tauri_plugin_autostart::ManagerExt;
 
 use crate::{
     app_state::{AppState, CodexControl},
-    codex::usage::CodexUsage,
+    codex::usage::{CodexUsage, UsageWindow},
     config::AppConfig,
     windows,
 };
@@ -322,21 +322,28 @@ pub fn handle_context_menu_event(app: &AppHandle, event: MenuEvent) {
 }
 
 pub fn update_usage(app: &AppHandle, usage: &CodexUsage, config: &AppConfig) {
-    let five_hour = usage
-        .five_hour
-        .as_ref()
-        .map(|window| format!("{:.0}%", window.remaining_percent))
-        .unwrap_or_else(|| "—".into());
-    let weekly = usage
-        .weekly
-        .as_ref()
-        .map(|window| format!("{:.0}%", window.remaining_percent))
-        .unwrap_or_else(|| "—".into());
+    let values: Vec<_> = usage
+        .visible_windows(true, true)
+        .into_iter()
+        .map(quota_value)
+        .collect();
+    let tooltip = if values.is_empty() {
+        format!(
+            "Codex\n{}",
+            if usage.status == "available" {
+                "No quota windows reported"
+            } else {
+                &usage.status
+            }
+        )
+    } else {
+        format!("Codex\n{}", values.join("\n"))
+    };
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let _ = tray.set_tooltip(Some(format!("Codex\n5h: {five_hour}\nW: {weekly}")));
+        let _ = tray.set_tooltip(Some(tooltip));
         #[cfg(target_os = "macos")]
         {
-            let title = compact_menu_bar_title(config, &five_hour, &weekly);
+            let title = compact_menu_bar_title(config, usage);
             // Keep a recognizable, purpose-built template icon beside the
             // quota. Unlike the full-color app icon, this remains crisp and
             // visible in both light and dark macOS menu bars.
@@ -350,30 +357,50 @@ pub fn update_usage(app: &AppHandle, usage: &CodexUsage, config: &AppConfig) {
     }
 }
 
+fn quota_value(window: &UsageWindow) -> String {
+    let label = match window.window_minutes {
+        10_080 => "W".into(),
+        minutes if minutes % 60 == 0 => format!("{}h", minutes / 60),
+        minutes => format!("{minutes}m"),
+    };
+    format!("{label} {:.0}%", window.remaining_percent)
+}
+
 #[cfg(target_os = "macos")]
 fn menu_bar_icon() -> tauri::Result<tauri::image::Image<'static>> {
     tauri::image::Image::from_bytes(include_bytes!("../../icons/tray-icon.png"))
 }
 
 #[cfg(target_os = "macos")]
-fn compact_menu_bar_title(config: &AppConfig, five_hour: &str, weekly: &str) -> String {
+fn compact_menu_bar_title(config: &AppConfig, usage: &CodexUsage) -> String {
     if !config.compact_widget_enabled {
         return String::new();
     }
-    let mut values = Vec::with_capacity(2);
-    if config.compact_show_five_hour {
-        values.push(format!("5h {five_hour}"));
+    let values: Vec<_> = usage
+        .visible_windows(config.compact_show_five_hour, config.compact_show_weekly)
+        .into_iter()
+        .map(quota_value)
+        .collect();
+    if values.is_empty() {
+        "—".into()
+    } else {
+        values.join(" · ")
     }
-    if config.compact_show_weekly {
-        values.push(format!("W {weekly}"));
-    }
-    values.join(" · ")
 }
 
 #[cfg(all(test, target_os = "macos"))]
 mod tests {
     use super::compact_menu_bar_title;
+    use crate::codex::usage::parse_rate_limits_response;
     use crate::config::AppConfig;
+    use serde_json::json;
+
+    fn snapshot(five_hour: bool) -> crate::codex::usage::CodexUsage {
+        parse_rate_limits_response(&json!({ "rateLimits": {
+            "primary": { "windowDurationMins": 10080, "usedPercent": 35 },
+            "secondary": if five_hour { json!({ "windowDurationMins": 300, "usedPercent": 20 }) } else { json!(null) }
+        }})).unwrap()
+    }
 
     #[test]
     fn menu_bar_title_only_appears_in_compact_mode() {
@@ -381,16 +408,37 @@ mod tests {
         config.compact_widget_enabled = true;
         config.pet_enabled = false;
         assert_eq!(
-            compact_menu_bar_title(&config, "80%", "65%"),
+            compact_menu_bar_title(&config, &snapshot(true)),
             "5h 80% · W 65%"
         );
 
         config.compact_widget_enabled = false;
         config.pet_enabled = true;
-        assert_eq!(compact_menu_bar_title(&config, "80%", "65%"), "");
+        assert_eq!(compact_menu_bar_title(&config, &snapshot(true)), "");
 
         config.pet_enabled = false;
-        assert_eq!(compact_menu_bar_title(&config, "80%", "65%"), "");
+        assert_eq!(compact_menu_bar_title(&config, &snapshot(true)), "");
+    }
+
+    #[test]
+    fn menu_bar_adapts_to_weekly_only_and_restores_five_hour() {
+        let mut config = AppConfig::default();
+        config.compact_widget_enabled = true;
+        assert_eq!(compact_menu_bar_title(&config, &snapshot(false)), "W 65%");
+        config.compact_show_weekly = false;
+        assert_eq!(compact_menu_bar_title(&config, &snapshot(false)), "W 65%");
+        assert_eq!(compact_menu_bar_title(&config, &snapshot(true)), "5h 80%");
+    }
+
+    #[test]
+    fn no_quota_is_not_invented_as_full_or_zero() {
+        let mut config = AppConfig::default();
+        config.compact_widget_enabled = true;
+        let usage = parse_rate_limits_response(
+            &json!({ "rateLimits": { "primary": null, "secondary": null }}),
+        )
+        .unwrap();
+        assert_eq!(compact_menu_bar_title(&config, &usage), "—");
     }
 }
 

@@ -8,7 +8,7 @@ export function useAppData() {
   const [usage, setUsage] = useState<CodexUsage | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
-  const [appVersion, setAppVersion] = useState("0.1.0");
+  const [appVersion, setAppVersion] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

@@ -38,7 +38,11 @@ pub struct RateLimitResetCredits {
 pub struct CodexUsage {
     pub five_hour: Option<UsageWindow>,
     pub weekly: Option<UsageWindow>,
+    #[serde(default)]
+    pub other_windows: Vec<UsageWindow>,
     pub plan_type: Option<String>,
+    #[serde(default)]
+    pub account_label: Option<String>,
     pub rate_limit_reset_credits: Option<RateLimitResetCredits>,
     pub last_updated: Option<i64>,
     pub status: String,
@@ -50,7 +54,9 @@ impl CodexUsage {
         Self {
             five_hour: None,
             weekly: None,
+            other_windows: Vec::new(),
             plan_type: None,
+            account_label: None,
             rate_limit_reset_credits: None,
             last_updated: None,
             status: "connecting".into(),
@@ -62,12 +68,38 @@ impl CodexUsage {
         Self {
             five_hour: None,
             weekly: None,
+            other_windows: Vec::new(),
             plan_type: None,
+            account_label: None,
             rate_limit_reset_credits: None,
             last_updated: Some(Utc::now().timestamp()),
             status: "unavailable".into(),
             error: Some(message.into()),
         }
+    }
+
+    pub fn visible_windows(&self, show_five_hour: bool, show_weekly: bool) -> Vec<&UsageWindow> {
+        if !show_five_hour && !show_weekly {
+            return Vec::new();
+        }
+        let all: Vec<_> = self
+            .five_hour
+            .iter()
+            .chain(self.weekly.iter())
+            .chain(self.other_windows.iter())
+            .collect();
+        let selected: Vec<_> = all
+            .iter()
+            .copied()
+            .filter(|window| match window.window_minutes {
+                FIVE_HOUR_MINUTES => show_five_hour,
+                WEEKLY_MINUTES => show_weekly,
+                _ => true,
+            })
+            .collect();
+        // Keep preferences intact across accounts, but never leave a weekly-only
+        // account blank just because the user previously selected "5h only".
+        if selected.is_empty() { all } else { selected }
     }
 }
 
@@ -84,6 +116,7 @@ pub fn parse_rate_limits_response(result: &Value) -> Result<CodexUsage, String> 
 
     let mut five_hour = None;
     let mut weekly = None;
+    let mut other_windows = Vec::new();
     for key in ["primary", "secondary"] {
         let Some(window) = snapshot.get(key).filter(|value| !value.is_null()) else {
             continue;
@@ -91,11 +124,13 @@ pub fn parse_rate_limits_response(result: &Value) -> Result<CodexUsage, String> 
         let Some(window_minutes) = window.get("windowDurationMins").and_then(Value::as_i64) else {
             continue;
         };
-        let used_percent = window
-            .get("usedPercent")
-            .and_then(Value::as_f64)
-            .unwrap_or(0.0)
-            .clamp(0.0, 100.0);
+        let Some(used_percent) = window.get("usedPercent").and_then(Value::as_f64) else {
+            continue;
+        };
+        if window_minutes <= 0 {
+            continue;
+        }
+        let used_percent = used_percent.clamp(0.0, 100.0);
         let parsed = UsageWindow {
             used_percent,
             remaining_percent: (100.0 - used_percent).clamp(0.0, 100.0),
@@ -105,15 +140,8 @@ pub fn parse_rate_limits_response(result: &Value) -> Result<CodexUsage, String> 
         match window_minutes {
             FIVE_HOUR_MINUTES => five_hour = Some(parsed),
             WEEKLY_MINUTES => weekly = Some(parsed),
-            _ => log::warn!("Ignoring unknown Codex rate-limit window: {window_minutes} minutes"),
+            _ => other_windows.push(parsed),
         }
-    }
-
-    if five_hour.is_none() {
-        log::warn!("Five-hour Codex bucket unavailable");
-    }
-    if weekly.is_none() {
-        log::warn!("Weekly Codex bucket unavailable");
     }
 
     let rate_limit_reset_credits = result
@@ -126,7 +154,9 @@ pub fn parse_rate_limits_response(result: &Value) -> Result<CodexUsage, String> 
     Ok(CodexUsage {
         five_hour,
         weekly,
+        other_windows,
         plan_type,
+        account_label: None,
         rate_limit_reset_credits,
         last_updated: Some(Utc::now().timestamp()),
         status: "available".into(),
@@ -231,6 +261,66 @@ mod tests {
         let usage = parse_rate_limits_response(&response).unwrap();
         assert!(usage.five_hour.is_none());
         assert_eq!(usage.weekly.unwrap().remaining_percent, 60.0);
+    }
+
+    #[test]
+    fn weekly_only_falls_back_without_changing_preferences() {
+        let usage = parse_rate_limits_response(&json!({ "rateLimits": {
+            "planType": "pro", "primary": null,
+            "secondary": { "usedPercent": 3, "windowDurationMins": WEEKLY_MINUTES }
+        }}))
+        .unwrap();
+        assert!(usage.five_hour.is_none());
+        assert_eq!(
+            usage.visible_windows(true, false)[0].remaining_percent,
+            97.0
+        );
+        assert_eq!(usage.visible_windows(true, true).len(), 1);
+        assert!(usage.visible_windows(false, false).is_empty());
+    }
+
+    #[test]
+    fn plan_name_does_not_determine_available_windows() {
+        for plan in ["plus", "pro", "team", "free"] {
+            let usage = parse_rate_limits_response(&json!({ "rateLimits": {
+                "planType": plan,
+                "primary": { "usedPercent": 10, "windowDurationMins": FIVE_HOUR_MINUTES },
+                "secondary": { "usedPercent": 20, "windowDurationMins": WEEKLY_MINUTES }
+            }}))
+            .unwrap();
+            assert_eq!(usage.visible_windows(true, true).len(), 2);
+            assert_eq!(
+                usage.visible_windows(false, true)[0].window_minutes,
+                WEEKLY_MINUTES
+            );
+        }
+    }
+
+    #[test]
+    fn missing_and_invalid_usage_never_implies_unlimited() {
+        for primary in [
+            json!(null),
+            json!({ "windowDurationMins": 300 }),
+            json!({ "usedPercent": 0, "windowDurationMins": 0 }),
+        ] {
+            let usage = parse_rate_limits_response(&json!({ "rateLimits": {
+                "primary": primary, "secondary": null
+            }}))
+            .unwrap();
+            assert!(usage.visible_windows(true, true).is_empty());
+            assert_eq!(usage.status, "available");
+        }
+    }
+
+    #[test]
+    fn preserves_non_standard_quota_duration() {
+        let usage = parse_rate_limits_response(&json!({ "rateLimits": {
+            "primary": { "usedPercent": 25, "windowDurationMins": 1440 }
+        }}))
+        .unwrap();
+        assert_eq!(usage.other_windows.len(), 1);
+        assert_eq!(usage.visible_windows(true, true)[0].window_minutes, 1440);
+        assert_eq!(usage.other_windows[0].remaining_percent, 75.0);
     }
 
     #[test]

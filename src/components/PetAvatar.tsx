@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { CodexUsage } from "../types";
 import { petName, translate, type LanguagePreference } from "../i18n";
+import { quotaWindows } from "../services/quota";
 
 export type BuiltInPet = "cat" | "dog" | "rocket" | "car" | "robot" | "tiga";
 
@@ -14,11 +15,12 @@ export const PET_PRESETS: { id: BuiltInPet; label: string }[] = [
 ];
 
 export function usageEnergy(usage: CodexUsage) {
-  const value = usage.fiveHour?.remainingPercent ?? usage.weekly?.remainingPercent;
-  return typeof value === "number" ? Math.max(0, Math.min(100, value)) : 0;
+  const value = quotaWindows(usage)[0]?.remainingPercent;
+  return typeof value === "number" ? Math.max(0, Math.min(100, value)) : null;
 }
 
-export function energyState(energy: number, language?: LanguagePreference) {
+export function energyState(energy: number | null, language?: LanguagePreference) {
+  if (energy === null) return { key: "unknown", label: translate(language, "quotaWaiting"), color: "#8b91a3" };
   if (energy >= 75) return { key: "full", label: translate(language, "energyFull"), color: "#4f7cff" };
   if (energy >= 45) return { key: "good", label: translate(language, "energyGood"), color: "#26b987" };
   if (energy >= 20) return { key: "low", label: translate(language, "energyLow"), color: "#efa63a" };
@@ -27,13 +29,14 @@ export function energyState(energy: number, language?: LanguagePreference) {
 
 interface Props {
   preset: BuiltInPet;
-  energy: number;
+  energy: number | null;
   className?: string;
   language?: LanguagePreference;
 }
 
-export function PetAvatar({ preset, energy, className = "", language }: Props) {
-  const state = energyState(energy, language);
+export function PetAvatar({ preset, energy: quotaEnergy, className = "", language }: Props) {
+  const state = energyState(quotaEnergy, language);
+  const energy = quotaEnergy ?? 50;
   const timerMix = Math.max(0, Math.min(1, energy / 100));
   const timerColor = `rgb(${Math.round(237 + (79 - 237) * timerMix)} ${Math.round(76 + (124 - 76) * timerMix)} ${Math.round(91 + (255 - 91) * timerMix)})`;
   const alertDuration = `${Math.max(.34, .34 + energy * .026).toFixed(2)}s`;

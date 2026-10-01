@@ -184,6 +184,7 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .pet-svg { display: block; width: 100%; height: 100%; overflow: visible; transition: filter .35s ease, transform .35s ease; }
 .pet-svg--full { filter: drop-shadow(0 0 7px rgba(109,93,252,.18)); }
 .pet-svg--empty { filter: saturate(.72); transform: translateY(5px) rotate(-1deg); }
+.pet-svg--unknown .pet-meter { display: none; }
 .pet-aura { display: none; }
 .pet-svg--full .pet-aura { opacity: .3; animation: aura-spin 10s linear infinite, aura-pulse 2s ease-in-out infinite; }
 .pet-body { fill: color-mix(in srgb, var(--pet-energy) 78%, white); stroke: #fff; stroke-width: 5px; stroke-linejoin: round; }
@@ -241,6 +242,8 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .pet-svg--tiga.pet-svg--empty .tiga-timer { animation: tiga-alert var(--tiga-alert-duration) ease-in-out infinite; }
 .pet-svg--tiga.pet-svg--empty { filter: drop-shadow(0 0 8px rgba(237,76,91,.62)); }
 .pet-quota { z-index: 1; display: flex; align-items: baseline; gap: 6px; color: #2d344c; text-shadow: 0 1px 2px white, 0 3px 12px rgba(27,31,51,.24); pointer-events: none; }
+.quota-note { padding: 14px 16px; margin: 0; border-radius: 12px; background: rgba(128,128,128,.08); color: #8b91a3; font-size: 13px; line-height: 1.6; }
+.compact-quota { display: inline-flex; align-items: center; gap: 5px; }
 .pet-quota span { color: #7464ef; font-size: 11px; font-weight: 700; }
 .pet-quota strong { font-size: 18px; letter-spacing: -.3px; }
 .pet-quota small { margin-left: 2px; color: var(--pet-energy); font-size: 10px; font-weight: 700; }

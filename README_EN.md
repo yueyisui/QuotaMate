@@ -24,7 +24,7 @@ It reuses your existing Codex sign-in. There is no token to paste, no web scrapi
 
 | Capability | What it does |
 | --- | --- |
-| Live quota | Shows 5-hour and weekly remaining quota, countdowns, and exact reset times |
+| Live quota | Shows the account's reported quota windows, countdowns, and exact reset times; adapts when no 5-hour window is reported |
 | Two glanceable modes | Native macOS menu bar / Windows compact widget, or a cross-platform desktop pet |
 | Custom pets | Imports transparent PNG, WebP, or animated GIF files and keeps a local history |
 | Local first | Talks directly to the local Codex App Server, with no extra quota service |
@@ -54,7 +54,7 @@ Compact mode keeps only the numbers that matter. Show `5h`, `W`, or both. It is 
 
 ## Desktop pet
 
-The pet turns the frequently updated 5-hour quota into a visible energy state. Its expression, color, and energy bar make the current headroom easy to understand at a glance.
+The pet uses the 5-hour quota for its energy state, falling back to weekly or another reported window. If none are reported, it shows “Awaiting data” instead of implying exhausted or unlimited quota.
 
 <p align="center">
   <img src="docs/images/pet-energy-demo.gif" width="800" alt="Desktop pet animation changing with the 5-hour quota" />
@@ -93,7 +93,7 @@ Animals, cartoon avatars, personal logos, pixel art, and animated stickers all w
 
 ## Dashboard and scheduler
 
-The main window brings together the account plan, both quota windows, reset times, reset credits, the next scheduled run, and the last update time. Fields not returned by the service are shown as unavailable instead of being guessed.
+The main window brings together the account plan, reported quota windows, reset times, reset credits, the next scheduled run, and the last update time. Missing quota windows are hidden; other unavailable fields are not guessed.
 
 The scheduler can start one minimal Codex session at multiple local times:
 
@@ -116,7 +116,13 @@ Open [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases/latest) an
 Before launching, make sure the Codex CLI—or a Codex desktop app that includes it—is installed and signed in. Windows also requires the WebView2 Runtime (already present on most Windows 10/11 systems); macOS uses the system WebKit.
 
 > [!WARNING]
-> Current packages are not signed with a trusted code-signing certificate. Download only from this repository. Windows may show a SmartScreen prompt. On macOS, first launch may require right-clicking the app in Finder and choosing Open, or approving it under System Settings → Privacy & Security.
+> Current packages are not signed with a trusted code-signing certificate. Download only from this repository and verify the SHA-256. Windows may show a SmartScreen prompt. From 0.1.2, macOS apps have a verified complete ad-hoc bundle signature but are not Apple-notarized. Follow the [macOS first-launch instructions](docs/macos-first-run.txt); do not disable system security globally.
+
+### Switching accounts
+
+QuotaMate checks the current local account through official Codex every 5 seconds. A switch or logout clears the old quota and reconnects; startup and network response time determine when fresh data arrives. The dashboard shows a masked email, and Refresh also reloads login state.
+
+Switching only the ChatGPT website account does not switch local Codex credentials. QuotaMate follows the current account in the same Codex configuration directory; it does not monitor multiple accounts simultaneously or all ChatGPT chat quotas.
 
 ### First run
 
@@ -170,9 +176,9 @@ It stays resident to update the menu bar, system tray, or desktop pet. Choose Ex
 </details>
 
 <details>
-<summary><strong>Why is a quota window, account plan, or reset credit unavailable?</strong></summary>
+<summary><strong>Why is the 5-hour quota or some other information missing?</strong></summary>
 
-Different Codex CLI versions, sign-in methods, and account types can return different fields. QuotaMate only displays data actually returned by the service.
+Different Codex CLI versions, sign-in methods, and account types can return different fields. QuotaMate displays only reported quota windows, adapting the dashboard, compact mode, and pet for weekly-only accounts. Plan names do not determine which windows appear, and missing data does not imply unlimited quota.
 </details>
 
 <details>

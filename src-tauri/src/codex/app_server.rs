@@ -15,13 +15,11 @@ use tokio::{
 use crate::{
     app_state::{AppState, CodexControl},
     codex::{
+        account::{AccountSnapshot, AccountWatcher},
         protocol::{
             account_request, initialize_request, initialized_notification, rate_limits_request,
         },
-        usage::{
-            CodexUsage, parse_account_plan_response, parse_rate_limits_response,
-            response_from_notification,
-        },
+        usage::{CodexUsage, parse_rate_limits_response, response_from_notification},
     },
     tray,
 };
@@ -34,6 +32,7 @@ const RECONNECT_DELAY: Duration = Duration::from_secs(5);
 
 enum ConnectionResult {
     Disconnected(String),
+    Reconnect,
     Shutdown,
 }
 
@@ -105,6 +104,9 @@ pub async fn start(app: AppHandle, state: Arc<AppState>) {
 
         match run_connection(&app, &state, &binary, &mut receiver).await {
             ConnectionResult::Shutdown => break,
+            ConnectionResult::Reconnect => {
+                log::info!("Reloading Codex account and usage");
+            }
             ConnectionResult::Disconnected(error) => {
                 log::error!("Codex app-server disconnected: {error}");
                 {
@@ -243,16 +245,53 @@ async fn run_connection(
         state.runtime_status.read().await.clone(),
     );
 
-    let mut request_id = 2_u64;
-    if let Err(error) = write_message(&mut stdin, &account_request(request_id)).await {
+    // Read account first. No quota request is allowed to race this initial
+    // identity read, and each reconnect starts with an empty usage snapshot.
+    if let Err(error) = write_message(&mut stdin, &account_request(2)).await {
         return stop_child(child, ConnectionResult::Disconnected(error)).await;
     }
-    let mut pending = HashMap::from([(request_id, (Instant::now(), PendingRequest::Account))]);
-    request_id = request_id.saturating_add(1);
-    if let Err(error) = write_message(&mut stdin, &rate_limits_request(request_id)).await {
-        return stop_child(child, ConnectionResult::Disconnected(error)).await;
+    let account_response = match time::timeout(REQUEST_TIMEOUT, wait_for_response(&mut lines, 2))
+        .await
+    {
+        Ok(Ok(response)) if response.get("error").is_none() => response,
+        Ok(Ok(response)) => {
+            return stop_child(
+                child,
+                ConnectionResult::Disconnected(json_rpc_error(&response)),
+            )
+            .await;
+        }
+        Ok(Err(error)) => return stop_child(child, ConnectionResult::Disconnected(error)).await,
+        Err(_) => {
+            return stop_child(
+                child,
+                ConnectionResult::Disconnected("Account read timed out".into()),
+            )
+            .await;
+        }
+    };
+    let account =
+        match AccountSnapshot::parse(account_response.get("result").unwrap_or(&Value::Null)) {
+            Ok(account) => account,
+            Err(error) => return stop_child(child, ConnectionResult::Disconnected(error)).await,
+        };
+    let mut initial_usage = CodexUsage::connecting();
+    initial_usage.plan_type = account.plan_type.clone();
+    initial_usage.account_label = account.label();
+    if !account.supports_quota() {
+        initial_usage =
+            CodexUsage::unavailable("Sign in to Codex with a ChatGPT account to view quota");
     }
-    pending.insert(request_id, (Instant::now(), PendingRequest::RateLimits));
+    publish_usage(app, state, initial_usage).await;
+    let mut request_id = 3_u64;
+    let mut pending = HashMap::new();
+    if account.supports_quota() {
+        if let Err(error) = write_message(&mut stdin, &rate_limits_request(request_id)).await {
+            return stop_child(child, ConnectionResult::Disconnected(error)).await;
+        }
+        pending.insert(request_id, (Instant::now(), PendingRequest::RateLimits));
+    }
+    let (_account_watcher, mut account_updates) = AccountWatcher::start(binary.clone());
     let mut last_poll = Instant::now();
     let mut heartbeat = time::interval(Duration::from_secs(2));
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
@@ -262,16 +301,18 @@ async fn run_connection(
             control = receiver.recv() => {
                 match control {
                     Some(CodexControl::Refresh) => {
-                        request_id = request_id.saturating_add(1);
-                        if let Err(error) = write_message(&mut stdin, &rate_limits_request(request_id)).await {
-                            return stop_child(child, ConnectionResult::Disconnected(error)).await;
-                        }
-                        pending.insert(request_id, (Instant::now(), PendingRequest::RateLimits));
-                        last_poll = Instant::now();
+                        // Recreate the server so manual refresh cannot reuse
+                        // credentials cached before an external account switch.
+                        return reconnect(app, state, child).await;
                     }
                     Some(CodexControl::Shutdown) | None => {
                         return stop_child(child, ConnectionResult::Shutdown).await;
                     }
+                }
+            }
+            Some(latest_account) = account_updates.recv() => {
+                if latest_account != account {
+                    return reconnect(app, state, child).await;
                 }
             }
             line = lines.next_line() => {
@@ -288,7 +329,13 @@ async fn run_connection(
                         continue;
                     }
                 };
-                if message.get("method").and_then(Value::as_str) == Some("account/rateLimits/updated") {
+                if message.get("method").and_then(Value::as_str) == Some("account/updated") {
+                    request_id = request_id.saturating_add(1);
+                    if let Err(error) = write_message(&mut stdin, &account_request(request_id)).await {
+                        return stop_child(child, ConnectionResult::Disconnected(error)).await;
+                    }
+                    pending.insert(request_id, (Instant::now(), PendingRequest::Account));
+                } else if account.supports_quota() && message.get("method").and_then(Value::as_str) == Some("account/rateLimits/updated") {
                     if let Some(params) = message.get("params") {
                         let is_codex = params
                             .get("rateLimits")
@@ -299,9 +346,10 @@ async fn run_connection(
                             let update = response_from_notification(params);
                             if let Ok(mut usage) = parse_rate_limits_response(&update) {
                                 let current = state.usage.read().await.clone();
-                                usage.five_hour = usage.five_hour.or(current.five_hour);
-                                usage.weekly = usage.weekly.or(current.weekly);
+                                // Each notification carries a new quota snapshot.
+                                // An absent window must clear the old one, not resurrect it.
                                 usage.plan_type = usage.plan_type.or(current.plan_type);
+                                usage.account_label = account.label();
                                 usage.rate_limit_reset_credits = usage
                                     .rate_limit_reset_credits
                                     .or(current.rate_limit_reset_credits);
@@ -331,10 +379,12 @@ async fn run_connection(
                     } else if let Some(result) = message.get("result") {
                         match request_kind {
                             PendingRequest::Account => {
-                                if let Some(plan_type) = parse_account_plan_response(result) {
-                                    let mut usage = state.usage.read().await.clone();
-                                    usage.plan_type = Some(plan_type);
-                                    publish_usage(app, state, usage).await;
+                                match AccountSnapshot::parse(result) {
+                                    Ok(latest_account) if latest_account != account => {
+                                        return reconnect(app, state, child).await;
+                                    }
+                                    Ok(_) => {}
+                                    Err(error) => log::warn!("Invalid account response: {error}"),
                                 }
                             }
                             PendingRequest::RateLimits => {
@@ -342,6 +392,7 @@ async fn run_connection(
                                     Ok(mut usage) => {
                                         let current = state.usage.read().await.clone();
                                         usage.plan_type = usage.plan_type.or(current.plan_type);
+                                        usage.account_label = account.label();
                                         publish_usage(app, state, usage).await;
                                     }
                                     Err(error) => {
@@ -364,7 +415,7 @@ async fn run_connection(
                     return stop_child(child, ConnectionResult::Disconnected("App Server rate-limit request timed out".into())).await;
                 }
                 let refresh_interval = state.config.read().await.refresh_interval;
-                if pending.is_empty() && last_poll.elapsed() >= Duration::from_secs(refresh_interval) {
+                if account.supports_quota() && pending.is_empty() && last_poll.elapsed() >= Duration::from_secs(refresh_interval) {
                     request_id = request_id.saturating_add(1);
                     if let Err(error) = write_message(&mut stdin, &rate_limits_request(request_id)).await {
                         return stop_child(child, ConnectionResult::Disconnected(error)).await;
@@ -377,7 +428,7 @@ async fn run_connection(
     }
 }
 
-async fn wait_for_response(
+pub(super) async fn wait_for_response(
     lines: &mut Lines<BufReader<ChildStdout>>,
     expected_id: u64,
 ) -> Result<Value, String> {
@@ -395,7 +446,7 @@ async fn wait_for_response(
     }
 }
 
-async fn write_message(
+pub(super) async fn write_message(
     stdin: &mut tokio::process::ChildStdin,
     message: &Value,
 ) -> Result<(), String> {
@@ -440,7 +491,23 @@ async fn stop_child(mut child: Child, result: ConnectionResult) -> ConnectionRes
     result
 }
 
-fn json_rpc_error(message: &Value) -> String {
+async fn reconnect(app: &AppHandle, state: &Arc<AppState>, child: Child) -> ConnectionResult {
+    // Clear every old window, reset card, account label and plan before handling
+    // any response from the next process. Pending replies die with this child.
+    publish_usage(app, state, CodexUsage::connecting()).await;
+    {
+        let mut status = state.runtime_status.write().await;
+        status.app_server_status = "reconnecting".into();
+        status.last_error = None;
+    }
+    let _ = app.emit(
+        "runtime-status-updated",
+        state.runtime_status.read().await.clone(),
+    );
+    stop_child(child, ConnectionResult::Reconnect).await
+}
+
+pub(super) fn json_rpc_error(message: &Value) -> String {
     message
         .get("error")
         .and_then(|error| error.get("message"))
@@ -492,6 +559,9 @@ pub fn resolve_codex_binary() -> Result<PathBuf, String> {
         let mut candidates = vec![
             PathBuf::from("/Applications/Codex.app/Contents/Resources/codex"),
             PathBuf::from("/Applications/ChatGPT.app/Contents/Resources/codex"),
+            PathBuf::from(
+                "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+            ),
             PathBuf::from("/opt/homebrew/bin/codex"),
             PathBuf::from("/usr/local/bin/codex"),
         ];
@@ -499,6 +569,7 @@ pub fn resolve_codex_binary() -> Result<PathBuf, String> {
             candidates.extend([
                 home.join("Applications/Codex.app/Contents/Resources/codex"),
                 home.join("Applications/ChatGPT.app/Contents/Resources/codex"),
+                home.join("Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"),
                 home.join(".local/bin/codex"),
             ]);
             let nvm_root = home.join(".nvm/versions/node");
@@ -544,9 +615,9 @@ pub fn resolve_codex_binary() -> Result<PathBuf, String> {
 }
 
 #[cfg(windows)]
-fn hide_window(command: &mut Command) {
+pub(super) fn hide_window(command: &mut Command) {
     command.creation_flags(CREATE_NO_WINDOW);
 }
 
 #[cfg(not(windows))]
-fn hide_window(_command: &mut Command) {}
+pub(super) fn hide_window(_command: &mut Command) {}

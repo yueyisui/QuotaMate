@@ -101,7 +101,7 @@ pub fn show_compact(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
 
     #[cfg(not(target_os = "macos"))]
     {
-        let (width, height) = compact_collapsed_size(config);
+        let (width, height) = compact_collapsed_size(app, config);
         let _ = app.emit_to("compact", "compact-collapse", ());
         let window = if let Some(window) = app.get_webview_window("compact") {
             window
@@ -144,7 +144,7 @@ pub fn set_compact_expanded(
     let (width, height) = if expanded {
         (410.0, 540.0)
     } else {
-        compact_collapsed_size(config)
+        compact_collapsed_size(app, config)
     };
     let scale = window.scale_factor().map_err(|error| error.to_string())?;
     let old_size = window.outer_size().map_err(|error| error.to_string())?;
@@ -256,9 +256,17 @@ pub fn attach_main_close_behavior(window: &WebviewWindow) {
     });
 }
 
-fn compact_collapsed_size(config: &AppConfig) -> (f64, f64) {
-    let visible_values =
-        usize::from(config.compact_show_five_hour) + usize::from(config.compact_show_weekly);
+fn compact_collapsed_size(app: &AppHandle, config: &AppConfig) -> (f64, f64) {
+    let state = app.state::<Arc<AppState>>();
+    let visible_values = state
+        .usage
+        .try_read()
+        .map(|usage| {
+            usage
+                .visible_windows(config.compact_show_five_hour, config.compact_show_weekly)
+                .len()
+        })
+        .unwrap_or(1);
     (if visible_values > 1 { 232.0 } else { 150.0 }, 58.0)
 }
 
@@ -340,7 +348,7 @@ fn attach_position_persistence(window: &WebviewWindow, kind: &'static str) {
                     "compact" => {
                         if let (Some(size), Some(scale)) = (outer_size, scale_factor) {
                             let (collapsed_width, collapsed_height) =
-                                compact_collapsed_size(&current);
+                                compact_collapsed_size(&app, &current);
                             position.x +=
                                 size.width as i32 - (collapsed_width * scale).round() as i32;
                             position.y +=

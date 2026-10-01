@@ -8,7 +8,9 @@ export interface UsageWindow {
 export interface CodexUsage {
   fiveHour: UsageWindow | null;
   weekly: UsageWindow | null;
+  otherWindows: UsageWindow[];
   planType: string | null;
+  accountLabel: string | null;
   rateLimitResetCredits: RateLimitResetCredits | null;
   lastUpdated: number | null;
   status: "connecting" | "available" | "unavailable";

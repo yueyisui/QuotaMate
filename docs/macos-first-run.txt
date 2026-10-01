@@ -1,0 +1,42 @@
+QuotaMate — macOS 首次安装 / First launch
+
+适用于 Apple Silicon Mac（M1 及后续芯片，包括 M5）。
+
+1. 从 QuotaMate 官方 GitHub Releases 下载并核对 SHA-256 校验值。
+2. 退出旧版 QuotaMate，将 QuotaMate.app 拖到 Applications（应用程序），替换旧版。
+3. 从“应用程序”打开 QuotaMate。
+4. 若 macOS 拦截，请前往“系统设置 → 隐私与安全性”，选择“仍要打开”。
+5. 如果没有“仍要打开”入口，确认安装包来自本项目且校验值一致后，在终端执行：
+
+   xattr -dr com.apple.quarantine "/Applications/QuotaMate.app"
+
+   再重新打开 QuotaMate。此操作仅移除此 App 的下载隔离标记。
+
+本项目采用免费临时签名，完整签名已经验证；没有付费 Developer ID 证书或 Apple 公证。
+完整性签名与 Apple 信任认证是两回事，首次下载可能仍需要手动允许运行。
+不需要关闭系统 Gatekeeper，也不需要修改系统的全局安全设置。
+
+账号切换
+切换本机 Codex 使用的登录账号后，QuotaMate 每 5 秒检查一次账号并重新获取额度。
+仅切换 ChatGPT 网页账号不会改变本机 Codex 的登录状态。
+主界面显示脱敏账号。点击“刷新”会重建连接并重新读取登录状态。
+目前监控当前 Codex 账号的额度，不同时监控多个账号或 ChatGPT 的全部聊天额度。
+
+English
+
+Supported: Apple Silicon Macs (M1 and later, including M5).
+Download from the official QuotaMate GitHub Releases and check the SHA-256.
+Quit the old app, drag QuotaMate.app to Applications, and replace the old copy.
+If macOS blocks it, use System Settings → Privacy & Security → Open Anyway.
+If that option is unavailable, after verifying the source and checksum, run:
+
+   xattr -dr com.apple.quarantine "/Applications/QuotaMate.app"
+
+This only removes the download quarantine attribute from this app.
+The app has a verified ad-hoc bundle signature but no paid Developer ID or Apple notarization.
+Do not disable Gatekeeper globally.
+
+QuotaMate checks the local Codex account every 5 seconds. Switching an account triggers
+a new connection and quota request; network delays can increase the update time.
+The dashboard shows a masked email. Refresh reloads local login state.
+Switching only the ChatGPT website account does not switch local Codex credentials.
