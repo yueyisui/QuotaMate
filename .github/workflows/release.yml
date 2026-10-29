@@ -173,7 +173,11 @@ jobs:
           $lines = Get-ChildItem "$output/*.exe" | Sort-Object Name | ForEach-Object {
             "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
           }
-          $lines | Set-Content "$output/SHA256SUMS-windows-x64.txt" -Encoding utf8NoBOM
+          [IO.File]::WriteAllText(
+            (Join-Path (Get-Location) "$output/SHA256SUMS-windows-x64.txt"),
+            ($lines -join "`n") + "`n",
+            [Text.UTF8Encoding]::new($false)
+          )
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x64
@@ -245,6 +249,9 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           test -f "docs/releases/$TAG.md"
+          # Also accept manifests from Windows builds produced before LF was
+          # made explicit; GNU sha256sum treats CR as part of the filename.
+          find artifacts -type f -name 'SHA256SUMS*' -exec sed -i 's/\r$//' {} +
           for platform in ubuntu-x64 windows-x64 macos-arm64; do
             (cd "artifacts/$platform"; sha256sum -c SHA256SUMS*)
           done
