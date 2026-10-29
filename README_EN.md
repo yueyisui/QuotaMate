@@ -6,6 +6,7 @@
   <p>
     <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows" />
     <img alt="macOS 10.15+" src="https://img.shields.io/badge/macOS-10.15%2B-000000?logo=apple" />
+    <img alt="Ubuntu 22.04 / 24.04" src="https://img.shields.io/badge/Ubuntu-22.04%20%7C%2024.04-E95420?logo=ubuntu" />
     <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri" />
     <img alt="Local first" src="https://img.shields.io/badge/Data-Local%20first-24B47E" />
     <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-F4C542.svg" /></a>
@@ -18,14 +19,14 @@ QuotaMate is a lightweight Codex quota companion. It reads the **5-hour quota, w
 It reuses your existing Codex sign-in. There is no token to paste, no web scraping, and no QuotaMate-hosted service receiving your usage data.
 
 > [!IMPORTANT]
-> QuotaMate is an independent community project, not an official OpenAI product. Current releases support Windows x64 and Apple Silicon Macs.
+> QuotaMate is an independent community project, not an official OpenAI product. Releases support Windows x64, Apple Silicon Macs, and Ubuntu x64.
 
 ## At a glance
 
 | Capability | What it does |
 | --- | --- |
 | Live quota | Shows the account's reported quota windows, countdowns, and exact reset times; adapts when no 5-hour window is reported |
-| Two glanceable modes | Native macOS menu bar / Windows compact widget, or a cross-platform desktop pet |
+| Two glanceable modes | Native macOS menu bar / Ubuntu top bar / Windows compact widget, or a cross-platform desktop pet |
 | Custom pets | Imports transparent PNG, WebP, or animated GIF files and keeps a local history |
 | Local first | Talks directly to the local Codex App Server, with no extra quota service |
 | Scheduler | Runs one minimal, read-only Codex session at selected local times |
@@ -45,6 +46,13 @@ Compact mode keeps only the numbers that matter. Show `5h`, `W`, or both. It is 
 - Left-click to open a detailed quota panel underneath; it closes when focus moves away or the pointer leaves.
 - Right-click for display modes, refresh, settings, and exit.
 - Clicking the Dock icon restores the main window after it has been closed or minimized.
+
+### Ubuntu: native top-bar quota
+
+- Shows an app icon and **`5h 50% · W 63%`** in the panel by default, without a compact desktop window.
+- Click the indicator for a native menu with live usage, refresh, scheduler, settings, display modes, and Exit. Click the quota row to open full details.
+- GNOME requires AppIndicator support. Some desktops display only the icon; the menu still shows live quota.
+- See [Ubuntu first run](docs/ubuntu-first-run.md) for installation and extension setup.
 
 ### Windows: floating compact widget
 
@@ -106,12 +114,13 @@ The scheduler can start one minimal Codex session at multiple local times:
 
 ## Download and install
 
-Open [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases/latest) and download the file for your system.
+Open [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases) and download the file for your system. Ubuntu packages start at 0.1.3; Windows and macOS packages remain available in [0.1.2](https://github.com/yueyisui/QuotaMate/releases/tag/v0.1.2).
 
 | Platform | Current support | Recommended file | Installation |
 | --- | --- | --- | --- |
-| Windows | Windows 10/11 x64 | `QuotaMate_<version>_x64-setup.exe` | Run the installer, or use the standalone `quotamate.exe` |
-| macOS | macOS 10.15+, Apple Silicon | `QuotaMate_<version>_aarch64.dmg` | Open the DMG and drag QuotaMate into Applications |
+| Windows | Windows 10/11 x64 | [0.1.2 installer](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.2/QuotaMate_0.1.2_x64-setup.exe) | Run the installer, or use the portable EXE from the same release |
+| macOS | macOS 10.15+, Apple Silicon | [0.1.2 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.2/QuotaMate_0.1.2_aarch64.dmg) | Open the DMG and drag QuotaMate into Applications |
+| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.3_amd64.deb` / `.AppImage` | Prefer `sudo apt install ./QuotaMate_0.1.3_amd64.deb`; see [Ubuntu setup](docs/ubuntu-first-run.md) |
 
 Before launching, make sure the Codex CLI—or a Codex desktop app that includes it—is installed and signed in. Windows also requires the WebView2 Runtime (already present on most Windows 10/11 systems); macOS uses the system WebKit.
 
@@ -139,6 +148,8 @@ Switching only the ChatGPT website account does not switch local Codex credentia
 | macOS menu bar | Left-click | Toggle the detailed quota panel |
 | macOS menu bar | Right-click | Open the shortcut menu |
 | macOS Dock | Click the app icon | Restore a closed or minimized main window |
+| Ubuntu top bar | Click the indicator | Open the native quota menu |
+| Ubuntu quota menu | Click quota row / Open QuotaMate | Open full usage details |
 | Windows system tray | Left-click | Open the main window |
 | Windows system tray | Right-click | Open the shortcut menu |
 | Windows compact widget | Click / drag / right-click | Details / move / shortcut menu |
@@ -216,11 +227,33 @@ pnpm tauri:build:windows
 
 Artifacts are written to `artifacts/windows-x64/`, including the NSIS installer and standalone EXE.
 
+### Ubuntu
+
+Build on Ubuntu 22.04 LTS for compatibility with both 22.04 and 24.04:
+
+```bash
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+pnpm install --frozen-lockfile
+pnpm tauri:build:linux
+```
+
+Packages, SHA-256 checksums and first-run notes are written to `artifacts/linux-x64/`. Tauri automatically loads the Linux-specific configuration. Windows and macOS packaging settings retain their existing behavior.
+
+GitHub Actions builds on Ubuntu 22.04, validates the installed app on Ubuntu 24.04, then publishes a new version from main after all checks pass. Existing releases are never replaced. Manual runs can build only or publish.
+
 ### Checks
 
 ```bash
 pnpm build
+pnpm test:quota
 cargo test --manifest-path src-tauri/Cargo.toml
+```
+
+The Linux indicator and scheduler smoke test uses fake Codex responses, isolated configuration, and no account quota:
+
+```bash
+sudo apt install xvfb xauth dbus-x11 python3-dbus python3-gi
+dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /path/to/quotamate
 ```
 
 ## Stack and layout
@@ -235,7 +268,7 @@ src/                         React UI, pets, and localization
 src-tauri/src/codex/         CLI discovery, App Server, and quota parsing
 src-tauri/src/config/        Local configuration and migrations
 src-tauri/src/scheduler/     Daily scheduled runs
-src-tauri/src/tray/          macOS menu bar and Windows system tray
+src-tauri/src/tray/          macOS menu bar, Ubuntu panel and Windows system tray
 src-tauri/src/windows/       Main and floating window lifecycle
 docs/images/                 README visuals and demo assets
 ```

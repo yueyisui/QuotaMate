@@ -14,6 +14,9 @@ use crate::{
     windows,
 };
 
+#[cfg(target_os = "linux")]
+mod linux;
+
 pub struct TrayMenuState {
     open: MenuItem<tauri::Wry>,
     display_header: MenuItem<tauri::Wry>,
@@ -72,6 +75,9 @@ pub fn create(app: &App, config: &AppConfig) -> tauri::Result<()> {
         ],
     )?;
 
+    #[cfg(target_os = "linux")]
+    linux::add_usage_menu(app, &menu)?;
+
     app.manage(TrayMenuState {
         open: show_usage,
         display_header,
@@ -96,9 +102,9 @@ pub fn create(app: &App, config: &AppConfig) -> tauri::Result<()> {
         .icon_as_template(cfg!(target_os = "macos"))
         .tooltip("Codex\nConnecting…")
         .menu(&menu)
-        .show_menu_on_left_click(false)
+        .show_menu_on_left_click(cfg!(target_os = "linux"))
         .on_menu_event(|app, event| match event.id().as_ref() {
-            "show_usage" => {
+            "show_usage" | "linux_usage" => {
                 let _ = windows::show_main(app, Some("usage"));
             }
             "show_compact" => {
@@ -162,7 +168,13 @@ pub fn sync_menu(app: &AppHandle, config: &AppConfig) {
     let chinese = config.uses_chinese();
     let marker = |active| if active { "●" } else { "○" };
     let hidden = !config.compact_widget_enabled && !config.pet_enabled;
-    let compact_label = if cfg!(target_os = "macos") {
+    let compact_label = if cfg!(target_os = "linux") {
+        if chinese {
+            "顶栏额度"
+        } else {
+            "Top bar quota"
+        }
+    } else if cfg!(target_os = "macos") {
         if chinese {
             "菜单栏额度"
         } else {
@@ -173,7 +185,13 @@ pub fn sync_menu(app: &AppHandle, config: &AppConfig) {
     } else {
         "Compact mode"
     };
-    let display_label = if cfg!(target_os = "macos") {
+    let display_label = if cfg!(target_os = "linux") {
+        if chinese {
+            "顶栏与桌面显示"
+        } else {
+            "Top bar & desktop display"
+        }
+    } else if cfg!(target_os = "macos") {
         if chinese {
             "菜单栏与桌面显示"
         } else {
@@ -232,9 +250,9 @@ pub fn sync_menu(app: &AppHandle, config: &AppConfig) {
     let _ = items.settings.set_text(labels.8);
     let _ = items.exit.set_text(labels.9);
 
-    // The macOS compact display lives in the menu bar. Refresh its text
+    // The macOS/Linux compact display lives in the panel. Refresh its text
     // immediately when the user changes which quota windows are visible.
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
         let app = app.clone();
         tauri::async_runtime::spawn(async move {
@@ -258,7 +276,13 @@ pub fn show_floating_context_menu(
     }
     let chinese = config.uses_chinese();
     let marker = |active| if active { "●" } else { "○" };
-    let compact_label = if cfg!(target_os = "macos") {
+    let compact_label = if cfg!(target_os = "linux") {
+        if chinese {
+            "顶栏额度"
+        } else {
+            "Top bar quota"
+        }
+    } else if cfg!(target_os = "macos") {
         if chinese {
             "菜单栏额度"
         } else {
@@ -341,6 +365,8 @@ pub fn update_usage(app: &AppHandle, usage: &CodexUsage, config: &AppConfig) {
     };
     if let Some(tray) = app.tray_by_id("main-tray") {
         let _ = tray.set_tooltip(Some(tooltip));
+        #[cfg(target_os = "linux")]
+        linux::update_usage(app, &tray, usage, config);
         #[cfg(target_os = "macos")]
         {
             let title = compact_menu_bar_title(config, usage);

@@ -6,6 +6,7 @@
   <p>
     <img alt="Windows 10 / 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows" />
     <img alt="macOS 10.15+" src="https://img.shields.io/badge/macOS-10.15%2B-000000?logo=apple" />
+    <img alt="Ubuntu 22.04 / 24.04" src="https://img.shields.io/badge/Ubuntu-22.04%20%7C%2024.04-E95420?logo=ubuntu" />
     <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri" />
     <img alt="本地优先" src="https://img.shields.io/badge/Data-Local%20first-24B47E" />
     <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-F4C542.svg" /></a>
@@ -18,14 +19,14 @@ QuotaMate 是一个轻量的 Codex 额度助手。它读取本机 Codex CLI 返�
 应用复用 Codex 已有的登录状态，不要求粘贴 Token，不抓取网页，也不会把额度数据发送到 QuotaMate 自建服务器。
 
 > [!IMPORTANT]
-> QuotaMate 是社区开发的第三方工具，并非 OpenAI 官方产品。当前发布版支持 Windows x64 和 Apple Silicon Mac。
+> QuotaMate 是社区开发的第三方工具，并非 OpenAI 官方产品。发布版支持 Windows x64、Apple Silicon Mac 和 Ubuntu x64。
 
 ## 一眼看懂
 
 | 能力 | 说明 |
 | --- | --- |
 | 实时额度 | 按账号实际返回的窗口显示剩余额度、重置倒计时和准确时间；没有 5 小时窗口时自动适配 |
-| 两种常驻方式 | macOS 菜单栏 / Windows 简洁浮窗，或跨平台桌面宠物 |
+| 两种常驻方式 | macOS 菜单栏 / Ubuntu 顶栏 / Windows 简洁浮窗，或跨平台桌面宠物 |
 | 自定义宠物 | 导入透明 PNG、WebP 或动态 GIF，保留本地历史记录 |
 | 本地优先 | 直接连接本机 Codex App Server，不经过额外额度服务 |
 | 计划任务 | 在指定本地时间运行一次最小化、只读的 Codex 会话 |
@@ -45,6 +46,13 @@ QuotaMate 是一个轻量的 Codex 额度助手。它读取本机 Codex CLI 返�
 - 左键单击后，在菜单栏下方展开额度详情；切换到其他位置或鼠标移开后自动收起。
 - 右键打开快捷菜单，可切换显示模式、刷新、进入设置或退出。
 - 关闭或最小化主窗口后，点击 Dock 图标会恢复主界面。
+
+### Ubuntu：原生顶栏额度
+
+- 默认在右上角显示 **应用图标 + `5h 50% · W 63%`**，不创建简洁桌面浮窗。
+- 点击图标打开原生菜单；顶部额度行可打开详情，也可刷新、进入计划任务和设置、切换模式或退出。
+- 支持 Ubuntu AppIndicator；精简 GNOME 安装需要启用 Ubuntu AppIndicators 扩展。
+- 部分桌面不显示图标旁文字时，原生菜单顶部仍保留实时额度。见 [Ubuntu 首次使用](docs/ubuntu-first-run.md)。
 
 ### Windows：桌面简洁浮窗
 
@@ -106,12 +114,13 @@ QuotaMate 是一个轻量的 Codex 额度助手。它读取本机 Codex CLI 返�
 
 ## 下载与安装
 
-前往 [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases/latest) 下载与你的系统对应的文件。
+前往 [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases) 下载与你的系统对应的文件。Ubuntu 从 0.1.3 开始提供；Windows/macOS 继续使用已发布的 [0.1.2](https://github.com/yueyisui/QuotaMate/releases/tag/v0.1.2)。
 
 | 平台 | 当前支持 | 推荐文件 | 安装方式 |
 | --- | --- | --- | --- |
-| Windows | Windows 10/11 x64 | `QuotaMate_<版本>_x64-setup.exe` | 运行安装程序；也可下载 `quotamate.exe` 免安装版 |
-| macOS | macOS 10.15+，Apple Silicon | `QuotaMate_<版本>_aarch64.dmg` | 打开 DMG，将 QuotaMate 拖入“应用程序” |
+| Windows | Windows 10/11 x64 | [0.1.2 安装包](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.2/QuotaMate_0.1.2_x64-setup.exe) | 运行安装程序；也可下载同版本免安装 EXE |
+| macOS | macOS 10.15+，Apple Silicon | [0.1.2 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.2/QuotaMate_0.1.2_aarch64.dmg) | 打开 DMG，将 QuotaMate 拖入“应用程序” |
+| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.3_amd64.deb` / `.AppImage` | 推荐 `sudo apt install ./QuotaMate_0.1.3_amd64.deb`；见 [Ubuntu 说明](docs/ubuntu-first-run.md) |
 
 运行前请确保 Codex CLI 或包含 Codex CLI 的 Codex 桌面应用已经安装并登录。Windows 还需要 WebView2 Runtime（多数 Windows 10/11 设备已预装）；macOS 使用系统 WebKit。
 
@@ -139,6 +148,8 @@ QuotaMate 每 5 秒通过官方 Codex 检查一次本机当前账号。检测到
 | macOS 菜单栏 | 左键单击 | 展开/收起额度详情面板 |
 | macOS 菜单栏 | 右键单击 | 打开快捷菜单 |
 | macOS Dock | 单击图标 | 恢复已关闭或最小化的主窗口 |
+| Ubuntu 顶栏 | 单击图标 | 打开原生额度菜单 |
+| Ubuntu 额度菜单 | 单击额度行 / 打开 QuotaMate | 打开主界面和完整额度 |
 | Windows 系统托盘 | 左键单击 | 打开主界面 |
 | Windows 系统托盘 | 右键单击 | 打开快捷菜单 |
 | Windows 简洁浮窗 | 单击 / 拖动 / 右键 | 展开详情 / 移动 / 打开快捷菜单 |
@@ -216,11 +227,33 @@ pnpm tauri:build:windows
 
 产物写入 `artifacts/windows-x64/`，包括 NSIS 安装包和免安装 EXE。
 
+### Ubuntu
+
+建议在 Ubuntu 22.04 LTS 上构建，以兼容 22.04 和 24.04。安装系统开发依赖及通用依赖后运行：
+
+```bash
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+pnpm install --frozen-lockfile
+pnpm tauri:build:linux
+```
+
+产物写入 `artifacts/linux-x64/`，包括 `.deb`、AppImage、SHA-256 和首次使用说明。Tauri 自动加载 Linux 专用配置，Windows/macOS 打包配置保持原样。
+
+GitHub Actions 在 Ubuntu 22.04 上编译测试，再在 Ubuntu 24.04 上安装验证；主分支中新版本通过全部检查后发布 Release，已有 Release 不会被替换。也可手动运行工作流，仅构建或选择发布。
+
 ### 验证
 
 ```bash
 pnpm build
+pnpm test:quota
 cargo test --manifest-path src-tauri/Cargo.toml
+```
+
+Linux 原生托盘与计划任务冒烟测试使用模拟 Codex，不读取真实凭据、不消耗额度：
+
+```bash
+sudo apt install xvfb xauth dbus-x11 python3-dbus python3-gi
+dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /path/to/quotamate
 ```
 
 ## 技术栈与目录
@@ -235,7 +268,7 @@ src/                         React 界面、宠物与国际化
 src-tauri/src/codex/         CLI 查找、App Server 与额度解析
 src-tauri/src/config/        本地配置与迁移
 src-tauri/src/scheduler/     每日计划任务
-src-tauri/src/tray/          macOS 菜单栏与 Windows 系统托盘
+src-tauri/src/tray/          macOS 菜单栏、Ubuntu 顶栏与 Windows 系统托盘
 src-tauri/src/windows/       主窗口和浮窗生命周期
 docs/images/                 README 图片与演示素材
 ```

@@ -15,6 +15,7 @@ import type { AppConfig, CodexUsage, PetImageHistoryEntry, Trigger } from "./typ
 
 type Page = "usage" | "scheduler" | "settings" | "about";
 const IS_MACOS = navigator.userAgent.includes("Mac OS X");
+const IS_LINUX = navigator.userAgent.includes("Linux");
 
 type PressGesture = {
   pointerId: number;
@@ -293,13 +294,13 @@ function SettingsPage() {
       </SettingsSection>
       <SettingsSection title={t("display")}>
         <p className="section-note">{t("mutuallyExclusive")}</p>
-        <Toggle label={t("enableCompact")} checked={config.compactWidgetEnabled} onChange={(compactWidgetEnabled) => patch({ compactWidgetEnabled, petEnabled: compactWidgetEnabled ? false : config.petEnabled })} />
-        <div className="setting-row compact-content-setting"><span><strong>{t("compactContent")}</strong><small>{t(IS_MACOS ? "compactContentDescMac" : "compactContentDesc")}</small></span><div className="segmented-control">
+        <Toggle label={t(IS_LINUX ? "enableTopBar" : "enableCompact")} checked={config.compactWidgetEnabled} onChange={(compactWidgetEnabled) => patch({ compactWidgetEnabled, petEnabled: compactWidgetEnabled ? false : config.petEnabled })} />
+        <div className="setting-row compact-content-setting"><span><strong>{t("compactContent")}</strong><small>{t(IS_LINUX ? "compactContentDescLinux" : IS_MACOS ? "compactContentDescMac" : "compactContentDesc")}</small></span><div className="segmented-control">
           <button className={config.compactShowFiveHour && !config.compactShowWeekly ? "active" : ""} onClick={() => patch({ compactShowFiveHour: true, compactShowWeekly: false })}>{t("onlyFiveHour")}</button>
           <button className={!config.compactShowFiveHour && config.compactShowWeekly ? "active" : ""} onClick={() => patch({ compactShowFiveHour: false, compactShowWeekly: true })}>{t("onlyWeekly")}</button>
           <button className={config.compactShowFiveHour && config.compactShowWeekly ? "active" : ""} onClick={() => patch({ compactShowFiveHour: true, compactShowWeekly: true })}>{t("showAll")}</button>
         </div></div>
-        {!IS_MACOS && <Toggle label={t("lockCompact")} checked={config.compactWidgetLocked} onChange={(compactWidgetLocked) => patch({ compactWidgetLocked })} />}
+        {!IS_MACOS && !IS_LINUX && <Toggle label={t("lockCompact")} checked={config.compactWidgetLocked} onChange={(compactWidgetLocked) => patch({ compactWidgetLocked })} />}
         <Toggle label={t("enablePet")} checked={config.petEnabled} onChange={(petEnabled) => patch({ petEnabled, compactWidgetEnabled: petEnabled ? false : config.compactWidgetEnabled })} />
         <Toggle label={t("petAlwaysTop")} checked={config.petAlwaysOnTop} onChange={(petAlwaysOnTop) => patch({ petAlwaysOnTop })} />
         <div className="pet-picker">

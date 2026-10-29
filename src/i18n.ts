@@ -3,6 +3,7 @@ import type { AppConfig } from "./types";
 export type LanguagePreference = AppConfig["language"];
 
 const en = {
+  enableTopBar: "Show quota in the top bar", compactContentDescLinux: "Live quota appears beside the tray icon. Click the icon for details and actions. GNOME requires AppIndicator support.",
   liveSnapshot: "LIVE LOCAL SNAPSHOT", codexUsage: "Codex Usage", refresh: "Refresh",
   currentAccount: "Current Codex account", accountUnknown: "Not provided by Codex",
   connecting: "Connecting to Codex", unavailable: "Codex unavailable", waitingSnapshot: "Waiting for the first rate-limit snapshot.",
@@ -45,6 +46,7 @@ const en = {
 type MessageKey = keyof typeof en;
 
 const zh: Record<MessageKey, string> = {
+  enableTopBar: "在顶栏显示额度", compactContentDescLinux: "额度显示在托盘图标旁，点击图标可查看详情和操作；GNOME 需要启用 AppIndicator 支持。",
   liveSnapshot: "本机实时数据", codexUsage: "Codex 额度", refresh: "刷新",
   currentAccount: "当前 Codex 账号", accountUnknown: "Codex 暂未提供",
   connecting: "正在连接 Codex", unavailable: "Codex 暂不可用", waitingSnapshot: "正在等待首次额度数据。",

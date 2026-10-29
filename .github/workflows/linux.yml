@@ -1,0 +1,121 @@
+name: Ubuntu build and release
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'scripts/build_linux.sh'
+      - 'scripts/linux_smoke.py'
+      - '.github/workflows/linux.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the current version as a GitHub Release
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ubuntu-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install Ubuntu build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xauth dbus-x11 python3-dbus python3-gi
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build && pnpm test:quota
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Build Debian and AppImage packages
+        run: pnpm tauri:build:linux
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
+      - name: Smoke test the packaged Debian application
+        run: |
+          mkdir -p /tmp/quotamate-deb
+          dpkg-deb -x artifacts/linux-x64/*.deb /tmp/quotamate-deb
+          dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /tmp/quotamate-deb/usr/bin/quotamate
+      - name: Smoke test the complete AppImage without FUSE
+        run: APPIMAGE_EXTRACT_AND_RUN=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py artifacts/linux-x64/QuotaMate_*_amd64.AppImage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-x64
+          path: artifacts/linux-x64/
+          if-no-files-found: error
+
+  ubuntu-24:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-x64
+          path: artifacts/linux-x64/
+      - name: Install and test on Ubuntu 24.04
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ./artifacts/linux-x64/*.deb xvfb xauth dbus-x11 python3-dbus python3-gi
+          dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /usr/bin/quotamate
+          chmod +x artifacts/linux-x64/*.AppImage
+          APPIMAGE_EXTRACT_AND_RUN=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py artifacts/linux-x64/QuotaMate_*_amd64.AppImage
+
+  release:
+    needs: [build, ubuntu-24]
+    if: github.event_name != 'pull_request' && (github.event_name == 'push' || inputs.publish)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-x64
+          path: artifacts/linux-x64/
+      - name: Publish a new version after both Ubuntu checks pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "$TAG" ]]; then
+            echo "Tag does not match package version" >&2
+            exit 1
+          fi
+          # A main-branch version bump publishes once. Ordinary code pushes
+          # validate Linux without replacing an already published release.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists; published assets are unchanged."
+            exit 0
+          fi
+          test -f "docs/releases/$TAG.md"
+          cd artifacts/linux-x64
+          sha256sum -c SHA256SUMS
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "QuotaMate $TAG — Ubuntu" --notes-file "../../docs/releases/$TAG.md" ./*.deb ./*.AppImage SHA256SUMS ubuntu-first-run.md

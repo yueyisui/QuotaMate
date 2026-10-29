@@ -132,5 +132,10 @@ fn hide_window(command: &mut Command) {
     command.creation_flags(CREATE_NO_WINDOW);
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+fn hide_window(command: &mut Command) {
+    crate::codex::linux::configure_command(command);
+}
+
+#[cfg(all(not(windows), not(target_os = "linux")))]
 fn hide_window(_command: &mut Command) {}

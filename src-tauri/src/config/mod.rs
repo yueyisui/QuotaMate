@@ -72,7 +72,7 @@ impl Default for AppConfig {
             start_minimized: false,
             minimize_to_tray: true,
             run_in_background: true,
-            compact_widget_enabled: false,
+            compact_widget_enabled: cfg!(target_os = "linux"),
             compact_widget_locked: false,
             compact_show_five_hour: true,
             compact_show_weekly: true,

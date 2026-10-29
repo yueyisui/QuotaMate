@@ -538,6 +538,12 @@ fn sanitize(value: &str) -> String {
     }
 }
 
+#[cfg(target_os = "linux")]
+pub fn resolve_codex_binary() -> Result<PathBuf, String> {
+    super::linux::resolve_codex_binary()
+}
+
+#[cfg(not(target_os = "linux"))]
 pub fn resolve_codex_binary() -> Result<PathBuf, String> {
     let executable = if cfg!(windows) { "codex.exe" } else { "codex" };
     if let Some(candidate) = std::env::var_os("CODEX_CLI_PATH").map(PathBuf::from)
@@ -619,5 +625,10 @@ pub(super) fn hide_window(command: &mut Command) {
     command.creation_flags(CREATE_NO_WINDOW);
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+pub(super) fn hide_window(command: &mut Command) {
+    super::linux::configure_command(command);
+}
+
+#[cfg(all(not(windows), not(target_os = "linux")))]
 pub(super) fn hide_window(_command: &mut Command) {}

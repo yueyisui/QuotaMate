@@ -1,7 +1,7 @@
 {
   "name": "quotamate",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:build:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_windows.ps1",
-    "tauri:build:mac": "bash scripts/build_macos.sh"
+    "tauri:build:mac": "bash scripts/build_macos.sh",
+    "tauri:build:linux": "bash scripts/build_linux.sh"
   },
   "dependencies": {
     "react": "^19.1.0",

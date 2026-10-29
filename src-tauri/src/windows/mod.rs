@@ -91,15 +91,15 @@ pub fn hide_menu_bar_panel(app: &AppHandle) -> Result<(), String> {
 }
 
 pub fn show_compact(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
-        // On macOS the compact mode is rendered as live text beside the menu
+        // On macOS/Linux compact mode is rendered as live text beside the panel
         // bar icon, so no desktop WebView window should be created.
         let _ = config;
         return hide_auxiliary(app, "compact");
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
         let (width, height) = compact_collapsed_size(app, config);
         let _ = app.emit_to("compact", "compact-collapse", ());
