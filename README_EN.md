@@ -114,12 +114,12 @@ The scheduler can start one minimal Codex session at multiple local times:
 
 ## Download and install
 
-Open [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases) and download the file for your system. Ubuntu packages start at 0.1.3; Windows and macOS packages remain available in [0.1.2](https://github.com/yueyisui/QuotaMate/releases/tag/v0.1.2).
+Open [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases/latest) and download the file for your system. Windows, macOS, and Ubuntu share one version number and ship in the same release.
 
 | Platform | Current support | Recommended file | Installation |
 | --- | --- | --- | --- |
-| Windows | Windows 10/11 x64 | [0.1.2 installer](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.2/QuotaMate_0.1.2_x64-setup.exe) | Run the installer, or use the portable EXE from the same release |
-| macOS | macOS 10.15+, Apple Silicon | [0.1.2 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.2/QuotaMate_0.1.2_aarch64.dmg) | Open the DMG and drag QuotaMate into Applications |
+| Windows | Windows 10/11 x64 | [0.1.3 installer](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.3/QuotaMate_0.1.3_x64-setup.exe) | Run the installer, or use the portable EXE from the same release |
+| macOS | macOS 10.15+, Apple Silicon | [0.1.3 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.3/QuotaMate_0.1.3_aarch64.dmg) | Open the DMG and drag QuotaMate into Applications |
 | Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.3_amd64.deb` / `.AppImage` | Prefer `sudo apt install ./QuotaMate_0.1.3_amd64.deb`; see [Ubuntu setup](docs/ubuntu-first-run.md) |
 
 Before launching, make sure the Codex CLI—or a Codex desktop app that includes it—is installed and signed in. Windows also requires the WebView2 Runtime (already present on most Windows 10/11 systems); macOS uses the system WebKit.
@@ -239,7 +239,7 @@ pnpm tauri:build:linux
 
 Packages, SHA-256 checksums and first-run notes are written to `artifacts/linux-x64/`. Tauri automatically loads the Linux-specific configuration. Windows and macOS packaging settings retain their existing behavior.
 
-GitHub Actions builds on Ubuntu 22.04, validates the installed app on Ubuntu 24.04, then publishes a new version from main after all checks pass. Existing releases are never replaced. Manual runs can build only or publish.
+GitHub Actions builds Windows x64, Apple Silicon macOS, and Ubuntu x64 from the same source, and validates the installed Linux app on Ubuntu 24.04. All platforms must pass before publishing in one release. Missing platform packages can be added to an existing tag without replacing existing installers. `SHA256SUMS` covers every platform's installers. Manual runs can build only or publish.
 
 ### Checks
 

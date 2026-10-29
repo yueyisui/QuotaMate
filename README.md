@@ -114,12 +114,12 @@ QuotaMate 是一个轻量的 Codex 额度助手。它读取本机 Codex CLI 返�
 
 ## 下载与安装
 
-前往 [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases) 下载与你的系统对应的文件。Ubuntu 从 0.1.3 开始提供；Windows/macOS 继续使用已发布的 [0.1.2](https://github.com/yueyisui/QuotaMate/releases/tag/v0.1.2)。
+前往 [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases/latest) 下载与你的系统对应的文件。Windows、macOS 和 Ubuntu 统一使用同一个版本号，在同一个 Release 中提供安装包。
 
 | 平台 | 当前支持 | 推荐文件 | 安装方式 |
 | --- | --- | --- | --- |
-| Windows | Windows 10/11 x64 | [0.1.2 安装包](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.2/QuotaMate_0.1.2_x64-setup.exe) | 运行安装程序；也可下载同版本免安装 EXE |
-| macOS | macOS 10.15+，Apple Silicon | [0.1.2 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.2/QuotaMate_0.1.2_aarch64.dmg) | 打开 DMG，将 QuotaMate 拖入“应用程序” |
+| Windows | Windows 10/11 x64 | [0.1.3 安装包](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.3/QuotaMate_0.1.3_x64-setup.exe) | 运行安装程序；也可下载同版本免安装 EXE |
+| macOS | macOS 10.15+，Apple Silicon | [0.1.3 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.3/QuotaMate_0.1.3_aarch64.dmg) | 打开 DMG，将 QuotaMate 拖入“应用程序” |
 | Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.3_amd64.deb` / `.AppImage` | 推荐 `sudo apt install ./QuotaMate_0.1.3_amd64.deb`；见 [Ubuntu 说明](docs/ubuntu-first-run.md) |
 
 运行前请确保 Codex CLI 或包含 Codex CLI 的 Codex 桌面应用已经安装并登录。Windows 还需要 WebView2 Runtime（多数 Windows 10/11 设备已预装）；macOS 使用系统 WebKit。
@@ -239,7 +239,7 @@ pnpm tauri:build:linux
 
 产物写入 `artifacts/linux-x64/`，包括 `.deb`、AppImage、SHA-256 和首次使用说明。Tauri 自动加载 Linux 专用配置，Windows/macOS 打包配置保持原样。
 
-GitHub Actions 在 Ubuntu 22.04 上编译测试，再在 Ubuntu 24.04 上安装验证；主分支中新版本通过全部检查后发布 Release，已有 Release 不会被替换。也可手动运行工作流，仅构建或选择发布。
+GitHub Actions 从同一份源码构建 Windows x64、Apple Silicon macOS 和 Ubuntu x64，并在 Ubuntu 24.04 上安装验证。所有平台通过检查后，在同一个 Release 中发布；可为已有标签补齐缺少的平台安装包，已有安装包不会被替换。`SHA256SUMS` 统一列出所有平台安装包的校验值。也可手动运行工作流，仅构建或选择发布。
 
 ### 验证
 

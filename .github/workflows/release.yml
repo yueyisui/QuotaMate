@@ -1,0 +1,273 @@
+name: Build and release all platforms
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'scripts/**'
+      - 'docs/releases/**'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the current version as a GitHub Release
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+      tag: ${{ steps.source.outputs.tag }}
+      publish: ${{ steps.source.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Select one source commit for every platform
+        id: source
+        env:
+          PUBLISH_REQUESTED: ${{ inputs.publish }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          SOURCE_SHA="$GITHUB_SHA"
+          PUBLISH=false
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "$TAG" ]]; then
+            echo "Tag does not match package version" >&2
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == push || "$PUBLISH_REQUESTED" == true ]]; then
+            PUBLISH=true
+            if git show-ref --verify --quiet "refs/tags/$TAG"; then
+              if git diff --quiet "$TAG" "$GITHUB_SHA" -- package.json pnpm-lock.yaml src src-tauri scripts docs/macos-first-run.txt; then
+                # Fill missing platform packages from the original tagged code.
+                SOURCE_SHA=$(git rev-parse "$TAG^{commit}")
+              else
+                # Validate new code, but never attach it to an older version.
+                PUBLISH=false
+                echo "Application code differs from $TAG; bump the version before publishing."
+              fi
+            fi
+          fi
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Ubuntu 22.04 x64
+    needs: prepare
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install Ubuntu build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xauth dbus-x11 python3-dbus python3-gi
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build && pnpm test:quota
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Build Debian and AppImage packages
+        run: pnpm tauri:build:linux
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
+      - name: Smoke test the packaged Debian application
+        run: |
+          mkdir -p /tmp/quotamate-deb
+          dpkg-deb -x artifacts/linux-x64/*.deb /tmp/quotamate-deb
+          dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /tmp/quotamate-deb/usr/bin/quotamate
+      - name: Smoke test the complete AppImage without FUSE
+        run: APPIMAGE_EXTRACT_AND_RUN=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py artifacts/linux-x64/QuotaMate_*_amd64.AppImage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-x64
+          path: artifacts/linux-x64/
+          if-no-files-found: error
+
+  ubuntu-24:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-x64
+          path: artifacts/linux-x64/
+      - name: Install and test on Ubuntu 24.04
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ./artifacts/linux-x64/*.deb xvfb xauth dbus-x11 python3-dbus python3-gi
+          dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /usr/bin/quotamate
+          chmod +x artifacts/linux-x64/*.AppImage
+          APPIMAGE_EXTRACT_AND_RUN=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py artifacts/linux-x64/QuotaMate_*_amd64.AppImage
+
+  windows:
+    name: Windows x64
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test:quota
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Build Windows installer and portable executable
+        shell: pwsh
+        run: ./scripts/build_windows.ps1 -SkipInstall
+      - name: Verify version and collect Windows checksums
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $output = "artifacts/windows-x64"
+          $productVersion = (Get-Item "$output/quotamate.exe").VersionInfo.ProductVersion
+          if ($productVersion -notin @($version, "$version.0")) {
+            throw "Windows executable version mismatch: $productVersion"
+          }
+          Move-Item "$output/quotamate.exe" "$output/QuotaMate_${version}_x64-portable.exe"
+          $lines = Get-ChildItem "$output/*.exe" | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          }
+          $lines | Set-Content "$output/SHA256SUMS-windows-x64.txt" -Encoding utf8NoBOM
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: artifacts/windows-x64/
+          if-no-files-found: error
+
+  macos:
+    name: macOS Apple Silicon
+    needs: prepare
+    runs-on: macos-15
+    env:
+      CARGO_TARGET_DIR: /private/tmp/quotamate-macos-target
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+      - name: Verify native Apple Silicon runner
+        run: test "$(uname -m)" = arm64
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build && pnpm test:quota
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Build and verify signed app and DMG
+        run: pnpm tauri:build:mac
+      - name: Collect macOS checksums and first-launch instructions
+        run: |
+          cp docs/macos-first-run.txt artifacts/macos-arm64/
+          cd artifacts/macos-arm64
+          shasum -a 256 ./*.dmg > SHA256SUMS-macos-arm64.txt
+          # The manifest names must match the release attachment names.
+          sed -i '' 's|  ./|  |' SHA256SUMS-macos-arm64.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: |
+            artifacts/macos-arm64/*.dmg
+            artifacts/macos-arm64/*.txt
+          if-no-files-found: error
+
+  release:
+    needs: [prepare, build, ubuntu-24, windows, macos]
+    if: needs.prepare.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      - name: Publish all platform packages in one version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          test -f "docs/releases/$TAG.md"
+          for platform in ubuntu-x64 windows-x64 macos-arm64; do
+            (cd "artifacts/$platform"; sha256sum -c SHA256SUMS*)
+          done
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$SOURCE_SHA" --draft --title "QuotaMate $TAG" --notes-file "docs/releases/$TAG.md"
+          fi
+          gh release view "$TAG" --json assets --jq '.assets[].name' > /tmp/quotamate-existing-assets
+          while IFS= read -r -d '' file; do
+            name=$(basename "$file")
+            # Preserve existing installers; filling a missing platform is safe
+            # only because all builds above use the original version's code.
+            if [[ "$name" == SHA256SUMS ]]; then continue; fi
+            if ! grep -Fxq "$name" /tmp/quotamate-existing-assets; then
+              gh release upload "$TAG" "$file"
+            fi
+          done < <(find artifacts -type f -print0)
+          # Hash the actual published binaries, including retained Ubuntu files.
+          mkdir published
+          gh release download "$TAG" --pattern '*.exe' --pattern '*.dmg' --pattern '*.deb' --pattern '*.AppImage' --dir published
+          for file in "QuotaMate_${VERSION}_x64-setup.exe" "QuotaMate_${VERSION}_x64-portable.exe" "QuotaMate_${VERSION}_aarch64.dmg" "QuotaMate_${VERSION}_amd64.deb" "QuotaMate_${VERSION}_amd64.AppImage"; do
+            test -f "published/$file"
+          done
+          (cd published; sha256sum * > ../SHA256SUMS)
+          (cd published; sha256sum "QuotaMate_${VERSION}_amd64.deb" "QuotaMate_${VERSION}_amd64.AppImage" > ../SHA256SUMS-linux-x64.txt)
+          gh release upload "$TAG" SHA256SUMS SHA256SUMS-linux-x64.txt --clobber
+          gh release edit "$TAG" --draft=false --latest --title "QuotaMate $TAG" --notes-file "docs/releases/$TAG.md"
