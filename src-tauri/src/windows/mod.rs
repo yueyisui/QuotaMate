@@ -372,7 +372,14 @@ fn compact_collapsed_size(app: &AppHandle, config: &AppConfig) -> (f64, f64) {
 }
 
 fn pet_collapsed_size(config: &AppConfig) -> (f64, f64) {
-    (220.0 * config.pet_scale, 270.0 * config.pet_scale)
+    let (width, height) = (220.0 * config.pet_scale, 270.0 * config.pet_scale);
+    // GTK/WebKit keeps this undecorated view at least 200x200. Use the
+    // effective size for anchoring and persistence too, otherwise the 70%
+    // setting adds a 46px offset on every hide/reopen or scale change.
+    #[cfg(target_os = "linux")]
+    return (width.max(200.0), height.max(200.0));
+    #[cfg(not(target_os = "linux"))]
+    (width, height)
 }
 
 fn resize_from_bottom_right(window: &WebviewWindow, width: f64, height: f64) -> Result<(), String> {

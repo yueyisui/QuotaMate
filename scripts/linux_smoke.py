@@ -156,19 +156,45 @@ def main():
                             (line.split("=", 1) for line in xdo("getwindowgeometry", "--shell", window).splitlines())
                             if key in {"X", "Y", "WIDTH", "HEIGHT"}}
 
+                def saved_position():
+                    return json.loads(config_path.read_text()).get("petPosition") or {}
+
+                def stable_position(expected, window=None):
+                    # Observe a full debounce interval, so a later configure or
+                    # hide event cannot silently overwrite the correct anchor.
+                    stable_since = None
+
+                    def check():
+                        nonlocal stable_since
+                        matches = saved_position() == expected
+                        if window is not None:
+                            actual = geometry(window)
+                            matches = matches and actual["X"] == expected["x"] and actual["Y"] == expected["y"]
+                        if not matches:
+                            stable_since = None
+                            return False
+                        stable_since = stable_since or time.monotonic()
+                        return time.monotonic() - stable_since >= 0.5
+
+                    return check
+
                 wait_for(lambda: any("5h 80% · W 65%" in title for _, title in entries()), "live quota in native menu", app)
+                last_position = None
                 for cycle in range(8):
                     click("Desktop pet")
                     pet = wait_for(pet_window, f"pet visible (cycle {cycle + 1})", app)
-                    wait_for(lambda: 140 <= geometry(pet)["WIDTH"] <= 220, "pet opens at a small size", app)
+                    wait_for(lambda: (geometry(pet)["WIDTH"], geometry(pet)["HEIGHT"]) == (200, 200),
+                             "scale 0.7 opens at the actual GTK minimum 200x200", app)
+                    if last_position is not None:
+                        wait_for(stable_position(last_position, pet),
+                                 "reopening preserves the exact saved native position", app)
                     assert json.loads(config_path.read_text())["petScale"] == 0.7
                     wait_for(lambda: label() == "", "pet mode clears panel label", app)
                     # Window managers differ in whether they constrain an
                     # initial GTK window to the screen. Keep test input visible.
                     xdo("windowmove", pet, 400, 400)
-                    initial_x = 400 + geometry(pet)["WIDTH"] - 154
-                    wait_for(lambda: (json.loads(config_path.read_text()).get("petPosition") or {}).get("x") == initial_x,
-                             "pet is positioned for pointer input", app)
+                    wait_for(stable_position({"x": 400, "y": 400}, pet),
+                             "pointer-input position is saved as exact native X/Y", app)
                     # Real XTest pointer input exercises IPC, native resizing and
                     # the transparent WebKit window, beyond merely mapping it.
                     def expand():
@@ -189,19 +215,23 @@ def main():
                         screen = tuple(map(int, xdo("getdisplaygeometry").split()))
                         corner = (screen[0] - 1, screen[1] - 1)
                     xdo("mousemove", *corner)
-                    wait_for(lambda: 140 <= geometry(pet)["WIDTH"] <= 220, "pointer exit collapses pet", app)
+                    wait_for(lambda: (geometry(pet)["WIDTH"], geometry(pet)["HEIGHT"]) == (200, 200),
+                             "pointer exit collapses pet to 200x200", app)
+                    wait_for(stable_position({"x": 400, "y": 400}, pet),
+                             "expanding and collapsing preserves the native anchor", app)
                     # Moving the native window also exercises the debounced
                     # position persistence while WebKit animations are running.
                     xdo("windowmove", pet, 600 + cycle, 500)
-                    # Saved positions anchor the requested collapsed dimensions
-                    # at the native window's bottom right, including GTK minima.
-                    expected_x = 600 + cycle + geometry(pet)["WIDTH"] - 154
-                    wait_for(lambda: (json.loads(config_path.read_text()).get("petPosition") or {}).get("x") == expected_x,
-                             "pet position is persisted", app)
+                    last_position = {"x": 600 + cycle, "y": 500}
+                    wait_for(stable_position(last_position, pet),
+                             "dragged position is persisted as exact native X/Y", app)
                     click("Hidden")
                     wait_for(lambda: not pet_window(), "pet can be hidden", app)
+                    wait_for(stable_position(last_position), "hiding does not overwrite the saved native position", app)
                 click("Desktop pet")
-                wait_for(pet_window, "pet can be reopened after repeated resizing", app)
+                pet = wait_for(pet_window, "pet can be reopened after repeated resizing", app)
+                wait_for(stable_position(last_position, pet),
+                         "final reopening preserves the exact saved position after eight cycles", app)
                 click("Hidden")
                 wait_for(lambda: label() == "", "hidden mode clears panel label", app)
                 click("Top bar quota")

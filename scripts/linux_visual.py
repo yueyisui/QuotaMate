@@ -6,7 +6,7 @@ Default: private Xvfb + Openbox + xcompmgr, private D-Bus and fake Codex.
 Physical desktop (explicit opt-in, uses its actual GPU/compositor):
   /usr/bin/python3 scripts/linux_visual.py /path/to/quotamate --no-wm --output artifacts/visual-gpu
 
-Requires python3-dbus, python3-gi, python3-pil, GTK3/WebKitGTK4.1 headers,
+Requires python3-dbus, python3-gi, python3-gi-cairo, python3-pil, GTK3/WebKitGTK4.1 headers,
 pkg-config, a C compiler, xdotool, dbus-run-session, and (default mode) Xvfb,
 Openbox and xcompmgr. No real account, config, scheduler or autostart is used.
 The C preload is test-only; the app itself exposes no test control interface.

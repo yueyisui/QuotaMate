@@ -63,6 +63,8 @@ AppImage 也需要桌面支持 AppIndicator。建议安装 `.deb` 以获得应�
 
 配置保存在 `~/.config/com.quotamate.app/`。在“关于”页面点击“打开日志目录”查看诊断信息；反馈时请移除个人信息。桌面宠物的拖动、定位和置顶效果取决于窗口管理器，Wayland 下尤其如此；顶栏模式使用原生 AppIndicator。
 
+旧版 WebKitGTK 的透明绘制存在[旧帧叠加缺陷](https://bugs.webkit.org/show_bug.cgi?id=319864)。源码中的 Linux 宠物对受影响引擎使用完整透明帧，最多约 30 帧/秒，保留动画并清除旧图像；隐藏宠物后停止取帧。此兼容方式增加 CPU 消耗，顶栏模式不受影响。已包含上游修复的稳定版 WebKitGTK 2.52.6、2.54 及以上使用常规绘制。
+
 ## English
 
 Supports Ubuntu 22.04 / 24.04 LTS x86_64. Install the `.deb` with `sudo apt install ./QuotaMate_0.1.5_amd64.deb`, then launch QuotaMate from the application menu. Sign in to the local Codex CLI first. Top-bar quota is enabled by default; click the indicator for current usage and actions. Closing the main window keeps the app running; choose Exit from the indicator menu to quit.
