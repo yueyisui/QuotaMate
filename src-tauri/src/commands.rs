@@ -45,6 +45,13 @@ pub async fn save_config(
     mut next: AppConfig,
 ) -> Result<AppConfig, String> {
     let current = state.config.read().await.clone();
+    #[cfg(target_os = "linux")]
+    {
+        // Positions are owned by native drag events, not the settings form.
+        // Its last config event may predate a completed drag.
+        next.pet_position.clone_from(&current.pet_position);
+        next.compact_position.clone_from(&current.compact_position);
+    }
     if next.compact_widget_enabled && next.pet_enabled {
         if next.compact_widget_enabled && !current.compact_widget_enabled {
             next.pet_enabled = false;
@@ -79,6 +86,9 @@ pub async fn save_config(
     }
     config::save(&app, &next)?;
     *state.config.write().await = next.clone();
+    #[cfg(target_os = "linux")]
+    windows::apply_display_config_update(&app, &current, &next)?;
+    #[cfg(not(target_os = "linux"))]
     windows::apply_display_config(&app, &next)?;
     crate::tray::sync_menu(&app, &next);
     let _ = app.emit("config-updated", next.clone());

@@ -247,14 +247,17 @@ function SchedulerPage() {
 }
 
 function SettingsPage() {
-  const { config, saveConfig, setConfig, error, setError } = useAppData();
+  const { config, saveConfig, patchConfig, setConfig, error, setError } = useAppData();
   const [petHistory, setPetHistory] = useState<PetImageHistoryEntry[]>([]);
   const t = translator(config?.language);
   useEffect(() => {
     void backend.getPetImageHistory().then(setPetHistory).catch((reason) => setError(String(reason)));
   }, [config?.petImage, setError]);
   if (!config) return <Loading />;
-  const patch = (change: Partial<AppConfig>) => void saveConfig({ ...config, ...change });
+  const patch = (change: Partial<AppConfig>) => {
+    if (IS_LINUX) void patchConfig(change).catch(() => { /* The hook displays save errors. */ });
+    else void saveConfig({ ...config, ...change });
+  };
   const choosePet = async () => {
     try {
       const source = await open({ multiple: false, filters: [{ name: t("customPet"), extensions: ["png", "webp", "gif"] }] });

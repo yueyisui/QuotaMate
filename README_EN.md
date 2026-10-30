@@ -241,7 +241,11 @@ Packages, SHA-256 checksums and first-run notes are written to `artifacts/linux-
 
 Before bundling, the Linux hook verifies the official AppRun launcher's SHA-256 and sets its cached mode to `0755`. After bundling, `unsquashfs` checks the original permissions stored in the AppImage so other users can read files, execute launchers and traverse directories. An AppImage that fails is not exported. Extract-and-run can change permissions and does not replace this check.
 
-GitHub Actions builds Windows x64, Apple Silicon macOS, and Ubuntu x64 from the same source, and validates the installed Linux app on Ubuntu 24.04. All platforms must pass before publishing in one release. Missing platform packages can be added to an existing tag without replacing existing installers. `SHA256SUMS` covers every platform's installers. Manual runs can build only or publish.
+GitHub Actions builds Windows x64, Apple Silicon macOS, and Ubuntu x64 from the same source, and validates the installed Linux app on Ubuntu 24.04. Main pushes, version-tag pushes, and ordinary manual runs produce candidate packages without publishing. Download candidates from the corresponding workflow's Artifacts.
+
+Ubuntu 22.04 and 24.04 also check composited Debian and AppImage pet pixels under Xvfb, Openbox, and xcompmgr, covering pet switches, continuous animation, movement, and transparent-area clearing. Screenshots, results, and isolated logs are retained on success or failure in the `linux-visual-ubuntu-22` / `linux-visual-ubuntu-24` Artifacts. Tests use fake Codex responses without accessing a real account.
+
+Before publishing, validate transparency, continuous animation without trails, rapid pet switching, dragging, scaling, expansion/collapse, and close/reopen on a real Ubuntu desktop compositor. NVIDIA fixes also require validation on the affected GPU. Xvfb smoke tests and a running process do not replace these visual checks. After validating candidates from the same source commit, manually run the workflow with `publish` explicitly selected. All platform checks must pass before publishing in one release. Missing platform packages can be added to an existing tag without replacing existing installers. `SHA256SUMS` covers every platform's installers.
 
 ### Checks
 

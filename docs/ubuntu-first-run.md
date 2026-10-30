@@ -6,6 +6,14 @@
 sudo apt install ./QuotaMate_0.1.5_amd64.deb
 ```
 
+如果安装输出最后报 `shim-signed`、`grub-multi-install: not found`，先检查 QuotaMate 本身的状态：
+
+```bash
+dpkg-query -W -f='${Status}\n' quota-mate
+```
+
+`install ok installed` 表示 QuotaMate 已安装；此时 apt 的失败可能来自之前未配置完成的系统引导包。不要把引导包修复当成 QuotaMate 的安装步骤。已有运行依赖且只需更新 QuotaMate 时，可以把安装包复制到 `/tmp`，用 `sudo dpkg -i /tmp/QuotaMate_0.1.5_amd64.deb` 定向安装；引导包错误需单独检查。下载目录的 `_apt` 权限提示可通过使用可读的 `/tmp` 安装包避免。
+
 在 Ubuntu 的应用菜单搜索 **QuotaMate**。首次启动默认在右上角显示 `5h …% · W …%`；等待 Codex 返回数据后自动更新。点击图标打开原生菜单，选择额度行或“打开 QuotaMate”查看完整详情，也可刷新、打开计划任务、切换显示模式和退出。关闭主窗口后仍然更新额度并执行已启用的计划任务。
 
 ## 顶栏图标与 GNOME

@@ -41,6 +41,7 @@ uuid = { version = "1", features = ["v4"] }
 windows-sys = { version = "0.61", features = ["Win32_Globalization"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
 webkit2gtk = { version = "2", features = ["v2_16"] }
 
 

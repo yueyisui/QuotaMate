@@ -16,6 +16,9 @@ use crate::{
     config::{self, AppConfig, WindowPosition},
 };
 
+#[cfg(target_os = "linux")]
+mod linux;
+
 pub fn show_main(app: &AppHandle, page: Option<&str>) -> Result<(), String> {
     hide_menu_bar_panel(app)?;
     let window = app
@@ -188,16 +191,10 @@ pub fn show_pet(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
                 .build()
                 .map_err(|error| error.to_string())?;
         #[cfg(target_os = "linux")]
-        window
-            .with_webview(|webview| {
-                use webkit2gtk::{HardwareAccelerationPolicy, SettingsExt, WebViewExt};
-                if let Some(settings) = WebViewExt::settings(&webview.inner()) {
-                    // Accelerated transparent WebKitGTK surfaces can retain old
-                    // frames (including the loading spinner) and fail on resize.
-                    settings.set_hardware_acceleration_policy(HardwareAccelerationPolicy::Never);
-                }
-            })
-            .map_err(|error| error.to_string())?;
+        {
+            configure_pet_initial_size(&window, width, height)?;
+            linux::configure_pet(&window)?;
+        }
         attach_hide_on_close(&window);
         attach_position_persistence(&window, "pet");
         window
@@ -211,8 +208,69 @@ pub fn show_pet(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
     window
         .set_shadow(false)
         .map_err(|error| error.to_string())?;
+    #[cfg(target_os = "linux")]
+    apply_pet_position(&window, config, width, height)?;
+    #[cfg(not(target_os = "linux"))]
     apply_position(&window, config.pet_position.as_ref(), 28, 90)?;
     window.show().map_err(|error| error.to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn configure_pet_initial_size(
+    window: &WebviewWindow,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    window
+        .with_webview(move |webview| {
+            use gtk::prelude::*;
+            if let Some(native) = webview.inner().toplevel().and_downcast::<gtk::Window>() {
+                let first_map = std::cell::Cell::new(true);
+                native.connect_map(move |native| {
+                    if first_map.replace(false) {
+                        // GTK can initially map a non-resizable Tauri window at
+                        // its 200x200 default. Request the configured size once
+                        // it is mapped, before the first loaded pet is painted.
+                        native.resize(width.round() as i32, height.round() as i32);
+                    }
+                });
+            }
+        })
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn apply_pet_position(
+    window: &WebviewWindow,
+    config: &AppConfig,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let scale = window.scale_factor().map_err(|error| error.to_string())?;
+    let size = tauri::PhysicalSize::new(
+        (width * scale).round() as u32,
+        (height * scale).round() as u32,
+    );
+    let requested = if let Some(saved) = &config.pet_position {
+        PhysicalPosition::new(saved.x, saved.y)
+    } else if let Some(monitor) = window
+        .primary_monitor()
+        .map_err(|error| error.to_string())?
+    {
+        let area = monitor.work_area();
+        PhysicalPosition::new(
+            area.position.x + area.size.width as i32 - size.width as i32 - 28,
+            area.position.y + area.size.height as i32 - size.height as i32 - 90,
+        )
+    } else {
+        return Ok(());
+    };
+    // Tao's initial cached size may still be zero before ConfigureNotify.
+    // Bounds must use the requested size so a fresh pet stays on screen.
+    let safe = safe_position_with_size(window, requested, size)?;
+    window
+        .set_position(Position::Physical(safe))
+        .map_err(|error| error.to_string())
 }
 
 pub fn set_pet_expanded(app: &AppHandle, config: &AppConfig, expanded: bool) -> Result<(), String> {
@@ -240,6 +298,38 @@ pub fn apply_display_config(app: &AppHandle, config: &AppConfig) -> Result<(), S
         hide_auxiliary(app, "pet")?;
     }
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+pub fn apply_display_config_update(
+    app: &AppHandle,
+    previous: &AppConfig,
+    config: &AppConfig,
+) -> Result<(), String> {
+    let visible_pet = app
+        .get_webview_window("pet")
+        .filter(|window| window.is_visible().unwrap_or(false));
+    if config.pet_enabled
+        && previous.pet_enabled
+        && let Some(window) = visible_pet
+    {
+        // Changing an avatar, opacity or an unrelated setting only updates the
+        // existing DOM. Re-showing it also collapsed, resized and repositioned
+        // the native surface on every slider/preset click.
+        hide_auxiliary(app, "compact")?;
+        if config.pet_always_on_top != previous.pet_always_on_top {
+            window
+                .set_always_on_top(config.pet_always_on_top)
+                .map_err(|error| error.to_string())?;
+        }
+        if config.pet_scale != previous.pet_scale {
+            let _ = app.emit_to("pet", "pet-collapse", ());
+            let (width, height) = pet_collapsed_size(config);
+            resize_from_bottom_right(&window, width, height)?;
+        }
+        return Ok(());
+    }
+    apply_display_config(app, config)
 }
 
 fn attach_menu_bar_panel_behavior(window: &WebviewWindow) {
@@ -297,11 +387,18 @@ fn resize_from_bottom_right(window: &WebviewWindow, width: f64, height: f64) -> 
     window
         .set_size(tauri::LogicalSize::new(width, height))
         .map_err(|error| error.to_string())?;
+    let anchored_position = PhysicalPosition::new(
+        old_position.x + old_size.width as i32 - new_width,
+        old_position.y + old_size.height as i32 - new_height,
+    );
+    #[cfg(target_os = "linux")]
+    let anchored_position = safe_position_with_size(
+        window,
+        anchored_position,
+        tauri::PhysicalSize::new(new_width as u32, new_height as u32),
+    )?;
     window
-        .set_position(Position::Physical(PhysicalPosition::new(
-            old_position.x + old_size.width as i32 - new_width,
-            old_position.y + old_size.height as i32 - new_height,
-        )))
+        .set_position(Position::Physical(anchored_position))
         .map_err(|error| error.to_string())?;
     #[cfg(not(target_os = "linux"))]
     window
@@ -450,6 +547,14 @@ fn safe_initial_position(
     requested: PhysicalPosition<i32>,
 ) -> Result<PhysicalPosition<i32>, String> {
     let size = window.outer_size().map_err(|error| error.to_string())?;
+    safe_position_with_size(window, requested, size)
+}
+
+fn safe_position_with_size(
+    window: &WebviewWindow,
+    requested: PhysicalPosition<i32>,
+    size: tauri::PhysicalSize<u32>,
+) -> Result<PhysicalPosition<i32>, String> {
     let monitors = window
         .available_monitors()
         .map_err(|error| error.to_string())?;

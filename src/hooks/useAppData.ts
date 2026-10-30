@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { backend } from "../services/backend";
 import { resolvedLanguage } from "../i18n";
+import { createConfigSaveQueue } from "../services/configSaveQueue";
 import type { AppConfig, CodexUsage, RuntimeStatus } from "../types";
 
 export function useAppData() {
@@ -10,6 +11,18 @@ export function useAppData() {
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const [appVersion, setAppVersion] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const linuxSaves = useRef<ReturnType<typeof createConfigSaveQueue<AppConfig>> | null>(null);
+  if (__QUOTAMATE_PLATFORM__ === "linux" && !linuxSaves.current) {
+    linuxSaves.current = createConfigSaveQueue(
+      backend.getConfig, backend.saveConfig, setConfig,
+      (reason) => setError(reason === null ? null : String(reason)),
+    );
+  }
+
+  const receiveConfig = useCallback((next: AppConfig) => {
+    if (linuxSaves.current) linuxSaves.current.receive(next);
+    else setConfig(next);
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = resolvedLanguage(config?.language);
@@ -26,7 +39,7 @@ export function useAppData() {
       .then(([nextUsage, nextConfig, nextRuntime, version]) => {
         if (!mounted) return;
         setUsage(nextUsage);
-        setConfig(nextConfig);
+        receiveConfig(nextConfig);
         setRuntime(nextRuntime);
         setAppVersion(version);
       })
@@ -34,7 +47,7 @@ export function useAppData() {
 
     const unlisteners = [
       listen<CodexUsage>("usage-updated", ({ payload }) => setUsage(payload)),
-      listen<AppConfig>("config-updated", ({ payload }) => setConfig(payload)),
+      listen<AppConfig>("config-updated", ({ payload }) => receiveConfig(payload)),
       listen<RuntimeStatus>("runtime-status-updated", ({ payload }) =>
         setRuntime(payload),
       ),
@@ -43,9 +56,10 @@ export function useAppData() {
       mounted = false;
       void Promise.all(unlisteners).then((items) => items.forEach((unlisten) => unlisten()));
     };
-  }, []);
+  }, [receiveConfig]);
 
   const saveConfig = useCallback(async (next: AppConfig) => {
+    if (linuxSaves.current) return linuxSaves.current.patch(next);
     setConfig(next);
     try {
       const saved = await backend.saveConfig(next);
@@ -60,6 +74,11 @@ export function useAppData() {
     }
   }, []);
 
+  const patchConfig = useCallback((change: Partial<AppConfig>) => {
+    if (!linuxSaves.current) throw new Error("Partial config saves are Linux only");
+    return linuxSaves.current.patch(change);
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
       setError(null);
@@ -69,5 +88,5 @@ export function useAppData() {
     }
   }, []);
 
-  return { usage, config, runtime, appVersion, error, setError, setConfig, saveConfig, refresh };
+  return { usage, config, runtime, appVersion, error, setError, setConfig: receiveConfig, saveConfig, patchConfig, refresh };
 }
