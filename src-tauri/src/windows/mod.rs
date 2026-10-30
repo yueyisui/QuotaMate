@@ -187,6 +187,17 @@ pub fn show_pet(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
                 .visible(false)
                 .build()
                 .map_err(|error| error.to_string())?;
+        #[cfg(target_os = "linux")]
+        window
+            .with_webview(|webview| {
+                use webkit2gtk::{HardwareAccelerationPolicy, SettingsExt, WebViewExt};
+                if let Some(settings) = WebViewExt::settings(&webview.inner()) {
+                    // Accelerated transparent WebKitGTK surfaces can retain old
+                    // frames (including the loading spinner) and fail on resize.
+                    settings.set_hardware_acceleration_policy(HardwareAccelerationPolicy::Never);
+                }
+            })
+            .map_err(|error| error.to_string())?;
         attach_hide_on_close(&window);
         attach_position_persistence(&window, "pet");
         window

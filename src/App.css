@@ -184,6 +184,13 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .pet-svg { display: block; width: 100%; height: 100%; overflow: visible; transition: filter .35s ease, transform .35s ease; }
 .pet-svg--full { filter: drop-shadow(0 0 7px rgba(109,93,252,.18)); }
 .pet-svg--empty { filter: saturate(.72); transform: translateY(5px) rotate(-1deg); }
+/* Transparent WebKitGTK windows should draw the pet without a surrounding glow. */
+.pet-window--linux .pet-character,
+.pet-window--linux .custom-pet-stage,
+.pet-window--linux .pet-character .pet-svg,
+.pet-window--linux .tiga-eye,
+.pet-window--linux .tiga-timer { filter: none; }
+.pet-window--linux .pet-character:focus:not(:focus-visible) { outline: none; }
 .pet-svg--unknown .pet-meter { display: none; }
 .pet-aura { display: none; }
 .pet-svg--full .pet-aura { opacity: .3; animation: aura-spin 10s linear infinite, aura-pulse 2s ease-in-out infinite; }

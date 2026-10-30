@@ -14,8 +14,9 @@ import { quotaShortLabel, quotaWindows } from "./services/quota";
 import type { AppConfig, CodexUsage, PetImageHistoryEntry, Trigger } from "./types";
 
 type Page = "usage" | "scheduler" | "settings" | "about";
-const IS_MACOS = navigator.userAgent.includes("Mac OS X");
-const IS_LINUX = navigator.userAgent.includes("Linux");
+// Keep Linux UI selection independent of WebKit's user-agent string.
+const IS_LINUX = __QUOTAMATE_PLATFORM__ === "linux";
+const IS_MACOS = !IS_LINUX && navigator.userAgent.includes("Mac OS X");
 
 type PressGesture = {
   pointerId: number;
@@ -445,7 +446,7 @@ function DesktopPet() {
     void backend.setPetExpanded(false);
   };
   const collapsedGesture = useClickOrDrag(!expanded, true, toggleExpanded);
-  if (!usage || !config) return <Loading />;
+  if (!usage || !config) return IS_LINUX ? null : <Loading />;
   const energy = usageEnergy(usage);
   const state = energyState(energy, config.language);
   const [primaryWindow, secondaryWindow] = quotaWindows(usage);
@@ -454,7 +455,7 @@ function DesktopPet() {
   const preset = config.petPreset === "custom" ? "cat" : config.petPreset as BuiltInPet;
   const usesCustomImage = config.petPreset === "custom" && image;
   return (
-    <div className={`pet-window pet-window--${state.key} ${expanded ? "pet-window--expanded" : ""}`} style={{ opacity: config.opacity, "--pet-energy": state.color } as React.CSSProperties} {...collapsedGesture} onMouseLeave={collapseExpanded} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); void backend.showFloatingContextMenu("pet"); }}>
+    <div className={`pet-window pet-window--${state.key} ${IS_LINUX ? "pet-window--linux" : ""} ${expanded ? "pet-window--expanded" : ""}`} style={{ opacity: config.opacity, "--pet-energy": state.color } as React.CSSProperties} {...collapsedGesture} onMouseLeave={collapseExpanded} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); void backend.showFloatingContextMenu("pet"); }}>
       <div className="pet-toolbar" data-tauri-drag-region={expanded ? true : undefined}><span>⠿</span><button data-no-window-gesture title={t("close")} onClick={() => void backend.disableDisplay("pet")}>×</button></div>
       {!expanded && secondaryWindow && <div className="pet-quota pet-quota--weekly"><span>{quotaTitle(secondaryWindow.windowMinutes, config.language)}</span><strong>{Math.round(secondaryWindow.remainingPercent)}%</strong></div>}
       <button className={`pet-character ${usesCustomImage ? "pet-character--custom" : ""}`} aria-label={usesCustomImage ? t("customPetAlt") : t("codexUsage")}>{usesCustomImage ? <span className="custom-pet-stage" style={{ backgroundImage: `url("${image}")` }} /> : <PetAvatar preset={preset} energy={energy} language={config.language} />}</button>

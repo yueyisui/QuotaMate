@@ -1,6 +1,6 @@
 [package]
 name = "quotamate"
-version = "0.1.4"
+version = "0.1.5"
 description = "A lightweight Codex usage monitor and session scheduler for Windows, macOS and Ubuntu"
 authors = ["QuotaMate contributors"]
 license = "MIT"
@@ -39,6 +39,9 @@ uuid = { version = "1", features = ["v4"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Globalization"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = { version = "2", features = ["v2_16"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

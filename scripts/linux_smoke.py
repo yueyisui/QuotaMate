@@ -2,7 +2,8 @@
 """Exercise the packaged Linux app on a private D-Bus session with a fake Codex.
 
 Run: dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /path/to/quotamate
-Requires python3-dbus, python3-gi and Xvfb. No real Codex account is used.
+Requires python3-dbus, python3-gi, Xvfb, xdotool, Openbox and a C compiler.
+No real Codex account is used.
 """
 import datetime
 import json
@@ -82,7 +83,7 @@ def wait_for(check, description, process, timeout=35):
             if result:
                 print(f"PASS: {description}", flush=True)
                 return result
-        except dbus.DBusException:
+        except (dbus.DBusException, json.JSONDecodeError):
             pass
         time.sleep(0.1)
     raise AssertionError(f"Timed out waiting for {description}")
@@ -99,12 +100,15 @@ def main():
     watcher = Watcher(bus)
     with tempfile.TemporaryDirectory(prefix="quotamate-smoke-") as directory:
         root = Path(directory)
+        probe = root / "x11-probe.so"
+        subprocess.run(["cc", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror",
+                        str(Path(__file__).with_name("linux_x11_probe.c")), "-ldl", "-o", str(probe)], check=True)
         mock = root / "codex"
         mock.write_text(MOCK_CODEX)
         mock.chmod(0o755)
         config_path = root / ".config/com.quotamate.app/config.json"
         config_path.parent.mkdir(parents=True)
-        config_path.write_text(json.dumps({"language": "en", "triggers": [{
+        config_path.write_text(json.dumps({"language": "en", "petPreset": "car", "petScale": 0.7, "triggers": [{
             "id": "smoke", "enabled": True, "time": datetime.datetime.now().strftime("%H:%M"),
             "label": "Smoke", "lastRun": None, "lastRunDate": None, "lastStatus": None, "lastResult": None,
         }]}))
@@ -112,8 +116,9 @@ def main():
                "XDG_DATA_HOME": str(root / "data"), "XDG_CACHE_HOME": str(root / "cache"),
                "CODEX_HOME": str(root / "codex-home"), "CODEX_CLI_PATH": str(mock),
                "QUOTAMATE_SMOKE_RUNS": str(root / "runs"), "QUOTAMATE_SMOKE_WEEKLY": str(root / "weekly"),
-               "WEBKIT_DISABLE_DMABUF_RENDERER": "1", "LIBGL_ALWAYS_SOFTWARE": "1"}
+               "LD_PRELOAD": str(probe), "LIBGL_ALWAYS_SOFTWARE": "1"}
         with (root / "app.log").open("w+") as log:
+            wm = subprocess.Popen(["openbox", "--sm-disable"], env=env, stdout=log, stderr=log)
             app = subprocess.Popen([binary, "--minimized"], env=env, stdout=log, stderr=log, start_new_session=True)
             try:
                 wait_for(lambda: watcher.item, "native AppIndicator registration", app)
@@ -135,7 +140,58 @@ def main():
                     entry = next(identifier for identifier, title in entries() if text in title)
                     menu.Event(dbus.Int32(entry), "clicked", dbus.Int32(0), dbus.UInt32(0))
 
+                def xdo(*args):
+                    return subprocess.run(["xdotool", *map(str, args)], capture_output=True, text=True, check=True).stdout
+
+                def pet_window():
+                    result = subprocess.run(["xdotool", "search", "--onlyvisible", "--name", "^QuotaMate Pet$"], capture_output=True, text=True)
+                    return result.stdout.strip().splitlines()[0] if result.returncode == 0 else None
+
+                def geometry(window):
+                    return {key: int(value) for key, value in
+                            (line.split("=", 1) for line in xdo("getwindowgeometry", "--shell", window).splitlines())
+                            if key in {"X", "Y", "WIDTH", "HEIGHT"}}
+
                 wait_for(lambda: any("5h 80% · W 65%" in title for _, title in entries()), "live quota in native menu", app)
+                for cycle in range(8):
+                    click("Desktop pet")
+                    pet = wait_for(pet_window, f"pet visible (cycle {cycle + 1})", app)
+                    wait_for(lambda: 140 <= geometry(pet)["WIDTH"] <= 220, "pet opens at a small size", app)
+                    assert json.loads(config_path.read_text())["petScale"] == 0.7
+                    wait_for(lambda: label() == "", "pet mode clears panel label", app)
+                    # Real XTest pointer input exercises IPC, native resizing and
+                    # the transparent WebKit window, beyond merely mapping it.
+                    def expand():
+                        size = geometry(pet)
+                        if size["WIDTH"] == 310:
+                            return True
+                        xdo("mousemove", "--window", pet, size["WIDTH"] // 2, size["HEIGHT"] // 2, "click", 1)
+                        time.sleep(1)
+                        return geometry(pet)["WIDTH"] == 310
+                    wait_for(expand, "pet click expands rendered quota details", app)
+                    xdo("mousemove", "--window", pet, 155, 195)
+                    time.sleep(0.2)
+                    size = geometry(pet)
+                    # An expansion anchored at the bottom right can cover
+                    # (0, 0). Pick a screen corner outside the actual window.
+                    corner = (0, 0)
+                    if size["X"] <= 0 < size["X"] + size["WIDTH"] and size["Y"] <= 0 < size["Y"] + size["HEIGHT"]:
+                        screen = tuple(map(int, xdo("getdisplaygeometry").split()))
+                        corner = (screen[0] - 1, screen[1] - 1)
+                    xdo("mousemove", *corner)
+                    wait_for(lambda: 140 <= geometry(pet)["WIDTH"] <= 220, "pointer exit collapses pet", app)
+                    # Moving the native window also exercises the debounced
+                    # position persistence while WebKit animations are running.
+                    xdo("windowmove", pet, 600 + cycle, 500)
+                    # Saved positions anchor the requested collapsed dimensions
+                    # at the native window's bottom right, including GTK minima.
+                    expected_x = 600 + cycle + geometry(pet)["WIDTH"] - 154
+                    wait_for(lambda: (json.loads(config_path.read_text()).get("petPosition") or {}).get("x") == expected_x,
+                             "pet position is persisted", app)
+                    click("Hidden")
+                    wait_for(lambda: not pet_window(), "pet can be hidden", app)
+                click("Desktop pet")
+                wait_for(pet_window, "pet can be reopened after repeated resizing", app)
                 click("Hidden")
                 wait_for(lambda: label() == "", "hidden mode clears panel label", app)
                 click("Top bar quota")
@@ -159,6 +215,13 @@ def main():
                 print("PASS: one ephemeral session in an isolated directory", flush=True)
                 click("Exit")
                 assert app.wait(timeout=15) == 0
+                log.flush()
+                log.seek(0)
+                output = log.read()
+                assert "QUOTAMATE_X11_PROBE init=1" in output, "Xlib thread support must be initialized"
+                assert "QUOTAMATE_X11_PROBE open initialized=1" in output, "Probe must observe a real display connection"
+                assert "QUOTAMATE_X11_PROBE open initialized=0" not in output, "XInitThreads must precede every QuotaMate display connection"
+                print("PASS: Xlib thread support initialized before opening displays", flush=True)
                 print("PASS: clean exit from indicator menu", flush=True)
             except Exception:
                 log.flush()
@@ -169,6 +232,8 @@ def main():
                 if app.poll() is None:
                     os.killpg(app.pid, signal.SIGTERM)
                     app.wait(timeout=10)
+                wm.terminate()
+                wm.wait(timeout=10)
 
 
 if __name__ == "__main__":

@@ -118,9 +118,9 @@ Open [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases/latest) an
 
 | Platform | Current support | Recommended file | Installation |
 | --- | --- | --- | --- |
-| Windows | Windows 10/11 x64 | [0.1.4 installer](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.4/QuotaMate_0.1.4_x64-setup.exe) | Run the installer, or use the portable EXE from the same release |
-| macOS | macOS 10.15+, Apple Silicon | [0.1.4 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.4/QuotaMate_0.1.4_aarch64.dmg) | Open the DMG and drag QuotaMate into Applications |
-| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.4_amd64.deb` / `.AppImage` | Prefer `sudo apt install ./QuotaMate_0.1.4_amd64.deb`; see [Ubuntu setup](docs/ubuntu-first-run.md) |
+| Windows | Windows 10/11 x64 | [0.1.5 installer](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.5/QuotaMate_0.1.5_x64-setup.exe) | Run the installer, or use the portable EXE from the same release |
+| macOS | macOS 10.15+, Apple Silicon | [0.1.5 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.5/QuotaMate_0.1.5_aarch64.dmg) | Open the DMG and drag QuotaMate into Applications |
+| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.5_amd64.deb` / `.AppImage` | Prefer `sudo apt install ./QuotaMate_0.1.5_amd64.deb`; see [Ubuntu setup](docs/ubuntu-first-run.md) |
 
 Before launching, make sure the Codex CLI—or a Codex desktop app that includes it—is installed and signed in. Windows also requires the WebView2 Runtime (already present on most Windows 10/11 systems); macOS uses the system WebKit.
 

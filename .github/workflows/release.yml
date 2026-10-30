@@ -91,7 +91,7 @@ jobs:
       - name: Install Ubuntu build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf squashfs-tools xvfb xauth dbus-x11 python3-dbus python3-gi
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf squashfs-tools xvfb xauth xdotool openbox dbus-x11 python3-dbus python3-gi
       - name: Test AppImage packaging permission checks
         run: python3 -m unittest discover -s scripts -p 'test_appimage.py' -v
       - run: pnpm install --frozen-lockfile
@@ -129,7 +129,7 @@ jobs:
       - name: Install and test on Ubuntu 24.04
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ./artifacts/linux-x64/*.deb xvfb xauth dbus-x11 python3-dbus python3-gi
+          sudo apt-get install -y --no-install-recommends ./artifacts/linux-x64/*.deb build-essential xvfb xauth xdotool openbox dbus-x11 python3-dbus python3-gi
           dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /usr/bin/quotamate
           chmod +x artifacts/linux-x64/*.AppImage
           APPIMAGE_EXTRACT_AND_RUN=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py artifacts/linux-x64/QuotaMate_*_amd64.AppImage
