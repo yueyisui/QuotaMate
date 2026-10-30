@@ -97,6 +97,7 @@ def main():
     parser.add_argument("--first-open-only", action="store_true", help="Diagnose a fresh tray-to-pet opening without later cycles")
     parser.add_argument("--menu-about-to-show", action="store_true", help="Send the tray host's AboutToShow lifecycle call before each menu event")
     parser.add_argument("--trace-native", action="store_true", help="Retain test-probe GTK map/configure diagnostics on success too")
+    parser.add_argument("--trace-frame-clock", action="store_true", help="Diagnose check_resize during frame-clock flush/resume without adding a timer")
     parser.add_argument("--rapid-display-switches", type=int, default=0, metavar="N", help="Send N rapid native-menu mode sequences and assert that the final selection wins")
     parser.add_argument("--suppress-pet-configure-handlers", action="store_true", help="Test geometry observation without configure callbacks or external dragging")
     options = parser.parse_args()
@@ -136,10 +137,12 @@ def main():
             "id": "smoke", "enabled": True, "time": datetime.datetime.now().strftime("%H:%M"),
             "label": "Smoke", "lastRun": None, "lastRunDate": None, "lastStatus": None, "lastResult": None,
         }]}))
+        layout_path = root / "pet-layout.json"
         env = {**os.environ, "HOME": directory, "XDG_CONFIG_HOME": str(root / ".config"),
                "XDG_DATA_HOME": str(root / "data"), "XDG_CACHE_HOME": str(root / "cache"),
                "CODEX_HOME": str(root / "codex-home"), "CODEX_CLI_PATH": str(mock),
                "QUOTAMATE_SMOKE_RUNS": str(root / "runs"), "QUOTAMATE_SMOKE_WEEKLY": str(root / "weekly"),
+               "QUOTAMATE_TEST_LAYOUT_PATH": str(layout_path),
                # Xvfb has no GPU/DRI display. Use its software rendering path;
                # this is a test environment setting, independent of real GPUs.
                "WEBKIT_DISABLE_DMABUF_RENDERER": "1",
@@ -148,6 +151,8 @@ def main():
         suppress_marker = root / "suppress-configure-handlers"
         if options.suppress_pet_configure_handlers:
             env["QUOTAMATE_TEST_SUPPRESS_CONFIGURE_MARKER"] = str(suppress_marker)
+        if options.trace_frame_clock:
+            env["QUOTAMATE_TEST_FRAME_CLOCK"] = "1"
         with (root / "app.log").open("w+") as log:
             wm = subprocess.Popen(["openbox", "--sm-disable"], env=env, stdout=log, stderr=log)
             app = subprocess.Popen([binary, "--minimized"], env=env, stdout=log, stderr=log, start_new_session=True)
@@ -188,6 +193,16 @@ def main():
 
                 def saved_position():
                     return json.loads(config_path.read_text()).get("petPosition") or {}
+
+                def layout_matches(window, expected):
+                    try:
+                        layout = json.loads(layout_path.read_text())
+                    except (OSError, json.JSONDecodeError):
+                        return False
+                    return layout.get("xid") == int(window) and layout.get("mapped") == 1 and all(
+                        layout.get(key) == list(expected)
+                        for key in ("native", "gdkCached", "windowAllocation", "childAllocation")
+                    )
 
                 def stable_position(expected, window=None):
                     # Observe a full debounce interval, so a later configure or
@@ -288,7 +303,9 @@ def main():
                         xdo("mousemove", "--window", pet, size["WIDTH"] // 2, size["HEIGHT"] // 2, "click", 1)
                         time.sleep(1)
                         return geometry(pet)["WIDTH"] == 310
-                    wait_for(expand, "pet click expands rendered quota details", app)
+                    wait_for(expand, "pet click expands native window", app)
+                    wait_for(lambda: layout_matches(pet, (310, 390)),
+                             "expanded native size matches GDK cache and GTK window/child allocation", app)
                     xdo("mousemove", "--window", pet, 155, 195)
                     time.sleep(0.2)
                     size = geometry(pet)
@@ -301,6 +318,8 @@ def main():
                     xdo("mousemove", *corner)
                     wait_for(lambda: (geometry(pet)["WIDTH"], geometry(pet)["HEIGHT"]) == (200, 200),
                              "pointer exit collapses pet to 200x200", app)
+                    wait_for(lambda: layout_matches(pet, (200, 200)),
+                             "collapsed native size matches GDK cache and GTK window/child allocation", app)
                     wait_for(stable_position({"x": 400, "y": 400}, pet),
                              "expanding and collapsing preserves the native anchor", app)
                     if options.suppress_pet_configure_handlers:
@@ -363,6 +382,14 @@ def main():
                     for line in output.splitlines():
                         if "QUOTAMATE_X11_PROBE pet " in line:
                             print(line, flush=True)
+                if options.trace_frame_clock:
+                    summary = re.search(r"QUOTAMATE_X11_PROBE frame-clock-summary checks=\d+ paused-checks=\d+ manual-checks=(\d+) paused-manual-checks=(\d+)", output)
+                    assert summary and int(summary[1]) > 0, "Frame-clock probe must observe application check_resize calls"
+                    assert int(summary[2]) == 0, "Application check_resize calls must wait for frame-clock resume"
+                    print(f"PASS: {summary[1]} application resize checks occur outside the paused frame-clock phase", flush=True)
+                    for line in output.splitlines():
+                        if "QUOTAMATE_X11_PROBE" in line and any(key in line for key in ("check-resize", "frame-clock-summary", "paint-source")):
+                            print(line, flush=True)
                 print("PASS: Xlib thread support initialized before opening displays", flush=True)
                 print("PASS: geometry transitions complete without watchdog recovery", flush=True)
                 print("PASS: clean exit from indicator menu", flush=True)
@@ -391,6 +418,8 @@ def main():
                 except (OSError, NameError, dbus.DBusException) as diagnostic_error:
                     print(f"X/menu diagnostic failed: {diagnostic_error}", file=sys.stderr)
                 try:
+                    if layout_path.exists():
+                        print(f"Pet layout at failure: {layout_path.read_text().strip()}", file=sys.stderr)
                     if pet_window():
                         print(f"Pet geometry at failure: {geometry(pet_window())}", file=sys.stderr)
                 except (NameError, subprocess.CalledProcessError):
