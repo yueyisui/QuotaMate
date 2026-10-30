@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 import sys
@@ -97,6 +98,7 @@ def main():
     parser.add_argument("--menu-about-to-show", action="store_true", help="Send the tray host's AboutToShow lifecycle call before each menu event")
     parser.add_argument("--trace-native", action="store_true", help="Retain test-probe GTK map/configure diagnostics on success too")
     parser.add_argument("--rapid-display-switches", type=int, default=0, metavar="N", help="Send N rapid native-menu mode sequences and assert that the final selection wins")
+    parser.add_argument("--suppress-pet-configure-handlers", action="store_true", help="Test geometry observation without configure callbacks or external dragging")
     options = parser.parse_args()
     if not os.environ.get("QUOTAMATE_SMOKE_PRIVATE_BUS"):
         env = {**os.environ, "QUOTAMATE_SMOKE_PRIVATE_BUS": "1"}
@@ -143,6 +145,9 @@ def main():
                "WEBKIT_DISABLE_DMABUF_RENDERER": "1",
                "NO_AT_BRIDGE": "1",
                "LD_PRELOAD": str(probe), "LIBGL_ALWAYS_SOFTWARE": "1"}
+        suppress_marker = root / "suppress-configure-handlers"
+        if options.suppress_pet_configure_handlers:
+            env["QUOTAMATE_TEST_SUPPRESS_CONFIGURE_MARKER"] = str(suppress_marker)
         with (root / "app.log").open("w+") as log:
             wm = subprocess.Popen(["openbox", "--sm-disable"], env=env, stdout=log, stderr=log)
             app = subprocess.Popen([binary, "--minimized"], env=env, stdout=log, stderr=log, start_new_session=True)
@@ -269,6 +274,11 @@ def main():
                     xdo("windowmove", pet, 400, 400)
                     wait_for(stable_position({"x": 400, "y": 400}, pet),
                              "pointer-input position is saved as exact native X/Y", app)
+                    if options.suppress_pet_configure_handlers and cycle == 0:
+                        # Arm only after the fully constructed pet is ready.
+                        # The probe blocks existing handlers at the next resize,
+                        # leaving GTK's class/default configure handler intact.
+                        suppress_marker.touch()
                     # Real XTest pointer input exercises IPC, native resizing and
                     # the transparent WebKit window, beyond merely mapping it.
                     def expand():
@@ -293,12 +303,20 @@ def main():
                              "pointer exit collapses pet to 200x200", app)
                     wait_for(stable_position({"x": 400, "y": 400}, pet),
                              "expanding and collapsing preserves the native anchor", app)
-                    # Moving the native window also exercises the debounced
-                    # position persistence while WebKit animations are running.
-                    xdo("windowmove", pet, 600 + cycle, 500)
-                    last_position = {"x": 600 + cycle, "y": 500}
-                    wait_for(stable_position(last_position, pet),
-                             "dragged position is persisted as exact native X/Y", app)
+                    if options.suppress_pet_configure_handlers:
+                        # Blocking every user handler also removes Tao's Moved
+                        # notifications. This fault scenario covers controller
+                        # geometry only; default runs retain real drag coverage.
+                        last_position = {"x": 400, "y": 400}
+                        wait_for(stable_position(last_position, pet),
+                                 "collapsed anchor survives missing configure callbacks", app)
+                    else:
+                        # Moving the native window also exercises the debounced
+                        # position persistence while WebKit animations are running.
+                        xdo("windowmove", pet, 600 + cycle, 500)
+                        last_position = {"x": 600 + cycle, "y": 500}
+                        wait_for(stable_position(last_position, pet),
+                                 "dragged position is persisted as exact native X/Y", app)
                     click("Hidden")
                     wait_for(lambda: not pet_window(), "pet can be hidden", app)
                     wait_for(stable_position(last_position), "hiding does not overwrite the saved native position", app)
@@ -335,11 +353,18 @@ def main():
                 assert "QUOTAMATE_X11_PROBE init=1" in output, "Xlib thread support must be initialized"
                 assert "QUOTAMATE_X11_PROBE open initialized=1" in output, "Probe must observe a real display connection"
                 assert "QUOTAMATE_X11_PROBE open initialized=0" not in output, "XInitThreads must precede every QuotaMate display connection"
+                assert "geometry acknowledgement timed out" not in output, "Controlled geometry transitions must complete without watchdog recovery"
+                if options.suppress_pet_configure_handlers:
+                    summary = re.search(r"QUOTAMATE_X11_PROBE suppression-summary blocked=(\d+) callbacks=(\d+)", output)
+                    assert summary and 0 < int(summary[1]) < 128, "Configure-handler suppression must be installed"
+                    assert int(summary[2]) == 0, "Suppressed configure handlers must receive no later callbacks"
+                    print(f"PASS: suppressed {summary[1]} configure handlers with zero later probe callbacks", flush=True)
                 if options.trace_native:
                     for line in output.splitlines():
                         if "QUOTAMATE_X11_PROBE pet " in line:
                             print(line, flush=True)
                 print("PASS: Xlib thread support initialized before opening displays", flush=True)
+                print("PASS: geometry transitions complete without watchdog recovery", flush=True)
                 print("PASS: clean exit from indicator menu", flush=True)
             except Exception:
                 print(f"Window manager diagnostic: pid={wm.pid} returncode={wm.poll()}", file=sys.stderr)

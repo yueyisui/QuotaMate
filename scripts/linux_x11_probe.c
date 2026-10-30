@@ -2,14 +2,49 @@
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 typedef struct _XDisplay Display;
 extern char *program_invocation_short_name;
 static int initialized;
 static int is_app(void);
 static void *traced_pet;
+static unsigned suppressed_handlers;
+static unsigned configure_callbacks_after_suppression;
+
+static void report_suppression(void) {
+    fprintf(stderr, "QUOTAMATE_X11_PROBE suppression-summary blocked=%u callbacks=%u\n",
+            suppressed_handlers, configure_callbacks_after_suppression);
+}
+
+static void suppress_configure_handlers(void *window) {
+    if (!initialized || !is_app() || traced_pet != window || suppressed_handlers) return;
+    const char *marker = getenv("QUOTAMATE_TEST_SUPPRESS_CONFIGURE_MARKER");
+    if (!marker || access(marker, F_OK) != 0) return;
+    unsigned long (*widget_type)(void) = dlsym(RTLD_NEXT, "gtk_widget_get_type");
+    unsigned (*lookup)(const char *, unsigned long) = dlsym(RTLD_NEXT, "g_signal_lookup");
+    unsigned long (*find)(void *, unsigned, unsigned, unsigned, void *, void *, void *) =
+        dlsym(RTLD_NEXT, "g_signal_handler_find");
+    void (*block)(void *, unsigned long) = dlsym(RTLD_NEXT, "g_signal_handler_block");
+    if (!widget_type || !lookup || !find || !block) return;
+    unsigned signal = lookup("configure-event", widget_type());
+    if (!signal) return;
+    unsigned long handler;
+    // MATCH_ID alone in block_matched requires GLib 2.78. Finding unblocked
+    // handlers by ID also works on Ubuntu 22.04, preserving the class closure.
+    while (suppressed_handlers < 128 &&
+           (handler = find(window, (1u << 0) | (1u << 5), signal, 0, NULL, NULL, NULL))) {
+        block(window, handler);
+        suppressed_handlers++;
+    }
+    if (suppressed_handlers) {
+        fprintf(stderr, "QUOTAMATE_X11_PROBE suppression-start blocked=%u\n", suppressed_handlers);
+        atexit(report_suppression);
+    }
+}
 
 // Public GdkEventConfigure ABI, kept local so the probe needs no GTK headers.
 typedef struct {
@@ -62,6 +97,7 @@ static void trace_pet(void *widget, const char *event) {
 
 static int configured(void *widget, const ProbeConfigureEvent *event, void *data) {
     (void)data;
+    if (suppressed_handlers) configure_callbacks_after_suppression++;
     fprintf(stderr, "QUOTAMATE_X11_PROBE pet configure-payload=%d,%d,%d,%d send-event=%d\n",
             event->x, event->y, event->width, event->height, event->send_event);
     trace_pet(widget, "configure-event");
@@ -155,6 +191,7 @@ void gtk_widget_hide(void *widget) {
 
 void gtk_window_resize(void *window, int width, int height) {
     void (*original)(void *, int, int) = dlsym(RTLD_NEXT, "gtk_window_resize");
+    suppress_configure_handlers(window);
     trace_request(window, "resize", width, height);
     original(window, width, height);
 }

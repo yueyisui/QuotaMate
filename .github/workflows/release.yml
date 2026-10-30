@@ -112,6 +112,8 @@ jobs:
           mkdir -p /tmp/quotamate-deb
           dpkg-deb -x artifacts/linux-x64/*.deb /tmp/quotamate-deb
           dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /tmp/quotamate-deb/usr/bin/quotamate --rapid-display-switches 8
+      - name: Check native resizing without GTK configure notifications
+        run: dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /tmp/quotamate-deb/usr/bin/quotamate --rapid-display-switches 8 --suppress-pet-configure-handlers
       - name: Smoke test the complete AppImage without FUSE
         run: APPIMAGE_EXTRACT_AND_RUN=1 dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py artifacts/linux-x64/QuotaMate_*_amd64.AppImage --rapid-display-switches 8
       - name: Check composited Debian pet pixels

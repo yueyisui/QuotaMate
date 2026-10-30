@@ -142,6 +142,16 @@ def execute(options):
                 click('Desktop pet')
                 wait(visible,'own test pet mapped again',app)
                 stable(anchor,(200,200),f'cycle {cycle+1}: reopened native and saved position unchanged')
+            anchor = {'x':400,'y':300}
+            xdo('windowmove',pet,anchor['x'],anchor['y'])
+            stable(anchor,(200,200),'rapid geometry burst native anchor')
+            commands.run("""
+const invoke=window.__TAURI_INTERNALS__.invoke;
+await Promise.all(Array.from({length:16},(_,index)=>invoke('set_pet_expanded',{expanded:index%2===0})));
+await invoke('set_pet_expanded',{expanded:false});
+return {transitions:17};
+""")
+            stable(anchor,(200,200),'17 concurrent expand/collapse transitions preserve collapsed native and saved anchor')
             anchor = {'x':400,'y':400}
             xdo('windowmove',pet,400,400)
             stable(anchor,(200,200),'scale stress native anchor')
