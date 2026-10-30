@@ -1,10 +1,69 @@
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
+
 use tauri::{
     App, AppHandle, Manager,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIcon,
 };
+use tokio::sync::{Mutex, MutexGuard};
 
-use crate::{codex::usage::CodexUsage, config::AppConfig};
+use crate::{app_state::AppState, codex::usage::CodexUsage, config::AppConfig};
+
+struct DisplayUpdates {
+    generation: AtomicU64,
+    commit: Mutex<()>,
+}
+
+impl DisplayUpdates {
+    const fn new() -> Self {
+        Self {
+            generation: AtomicU64::new(0),
+            commit: Mutex::const_new(()),
+        }
+    }
+
+    fn next(&self) -> u64 {
+        self.generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    async fn lock_current(&self, generation: u64) -> Option<MutexGuard<'_, ()>> {
+        let guard = self.commit.lock().await;
+        (generation == self.generation.load(Ordering::SeqCst)).then_some(guard)
+    }
+}
+
+static DISPLAY_UPDATES: DisplayUpdates = DisplayUpdates::new();
+
+pub(super) fn next_display_selection() -> u64 {
+    DISPLAY_UPDATES.next()
+}
+
+pub(super) async fn lock_display_selection(generation: u64) -> Option<MutexGuard<'static, ()>> {
+    DISPLAY_UPDATES.lock_current(generation).await
+}
+
+pub(super) fn refresh_usage(app: &AppHandle) {
+    let generation = DISPLAY_UPDATES.generation.load(Ordering::SeqCst);
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let Some(_guard) = lock_display_selection(generation).await else {
+            return;
+        };
+        let Some(state) = app.try_state::<Arc<AppState>>() else {
+            return;
+        };
+        // Read after entering the same commit section as display selection.
+        // An older quota/menu refresh must not restore a previous panel label.
+        let usage = state.usage.read().await.clone();
+        let config = state.config.read().await.clone();
+        if let Some(tray) = app.tray_by_id("main-tray") {
+            update_usage(&app, &tray, &usage, &config);
+        }
+    });
+}
 
 struct UsageMenu(MenuItem<tauri::Wry>);
 
@@ -18,12 +77,7 @@ pub(super) fn add_usage_menu(app: &App, menu: &Menu<tauri::Wry>) -> tauri::Resul
     Ok(())
 }
 
-pub(super) fn update_usage(
-    app: &AppHandle,
-    tray: &TrayIcon,
-    usage: &CodexUsage,
-    config: &AppConfig,
-) {
+fn update_usage(app: &AppHandle, tray: &TrayIcon, usage: &CodexUsage, config: &AppConfig) {
     let summary = usage_summary(usage, config);
     // An empty string explicitly clears a previous AppIndicator label when
     // switching to a pet or hidden mode. The icon/menu remain available.
@@ -66,6 +120,26 @@ mod tests {
     use super::*;
     use crate::codex::usage::parse_rate_limits_response;
     use serde_json::json;
+
+    #[tokio::test]
+    async fn delayed_older_selection_cannot_follow_the_latest_commit() {
+        let updates = Arc::new(DisplayUpdates::new());
+        let old_generation = updates.next();
+        let (start_old, old_ready) = tokio::sync::oneshot::channel();
+        let old_updates = updates.clone();
+        let old = tokio::spawn(async move {
+            old_ready.await.unwrap();
+            old_updates.lock_current(old_generation).await.is_some()
+        });
+
+        let latest_generation = updates.next();
+        let latest_commit = updates.lock_current(latest_generation).await.unwrap();
+        start_old.send(()).unwrap();
+        // The old task starts after the latest task and must still be stale
+        // when it acquires the commit lock, regardless of runtime scheduling.
+        drop(latest_commit);
+        assert!(!old.await.unwrap());
+    }
 
     #[test]
     fn panel_uses_selected_windows_and_adapts_to_weekly_only() {

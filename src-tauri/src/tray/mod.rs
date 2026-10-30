@@ -252,7 +252,9 @@ pub fn sync_menu(app: &AppHandle, config: &AppConfig) {
 
     // The macOS/Linux compact display lives in the panel. Refresh its text
     // immediately when the user changes which quota windows are visible.
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[cfg(target_os = "linux")]
+    linux::refresh_usage(app);
+    #[cfg(target_os = "macos")]
     {
         let app = app.clone();
         tauri::async_runtime::spawn(async move {
@@ -346,6 +348,8 @@ pub fn handle_context_menu_event(app: &AppHandle, event: MenuEvent) {
 }
 
 pub fn update_usage(app: &AppHandle, usage: &CodexUsage, config: &AppConfig) {
+    #[cfg(target_os = "linux")]
+    let _ = config; // Linux reads the current config inside its commit lock.
     let values: Vec<_> = usage
         .visible_windows(true, true)
         .into_iter()
@@ -366,7 +370,7 @@ pub fn update_usage(app: &AppHandle, usage: &CodexUsage, config: &AppConfig) {
     if let Some(tray) = app.tray_by_id("main-tray") {
         let _ = tray.set_tooltip(Some(tooltip));
         #[cfg(target_os = "linux")]
-        linux::update_usage(app, &tray, usage, config);
+        linux::refresh_usage(app);
         #[cfg(target_os = "macos")]
         {
             let title = compact_menu_bar_title(config, usage);
@@ -484,8 +488,16 @@ fn request_refresh(app: &AppHandle) {
 }
 
 fn select_display(app: &AppHandle, mode: &'static str) {
+    // Assign the order in the synchronous menu callback, before spawning.
+    // Tokio tasks can start in a different order during rapid Linux clicks.
+    #[cfg(target_os = "linux")]
+    let generation = linux::next_display_selection();
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
+        #[cfg(target_os = "linux")]
+        let Some(_guard) = linux::lock_display_selection(generation).await else {
+            return;
+        };
         let state = app.state::<Arc<AppState>>();
         let snapshot = {
             let mut config = state.config.write().await;

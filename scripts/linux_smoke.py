@@ -96,6 +96,7 @@ def main():
     parser.add_argument("--first-open-only", action="store_true", help="Diagnose a fresh tray-to-pet opening without later cycles")
     parser.add_argument("--menu-about-to-show", action="store_true", help="Send the tray host's AboutToShow lifecycle call before each menu event")
     parser.add_argument("--trace-native", action="store_true", help="Retain test-probe GTK map/configure diagnostics on success too")
+    parser.add_argument("--rapid-display-switches", type=int, default=0, metavar="N", help="Send N rapid native-menu mode sequences and assert that the final selection wins")
     options = parser.parse_args()
     if not os.environ.get("QUOTAMATE_SMOKE_PRIVATE_BUS"):
         env = {**os.environ, "QUOTAMATE_SMOKE_PRIVATE_BUS": "1"}
@@ -165,8 +166,7 @@ def main():
                     if options.menu_about_to_show:
                         menu.AboutToShow(dbus.Int32(0))
                     entry = next(identifier for identifier, title in entries() if text in title)
-                    if options.first_open_only:
-                        print(f"MENU: {text} id={entry} aboutToShow={options.menu_about_to_show}", flush=True)
+                    print(f"MENU: {text} id={entry} monotonic={time.monotonic():.6f} aboutToShow={options.menu_about_to_show}", flush=True)
                     menu.Event(dbus.Int32(entry), "clicked", dbus.Int32(0), dbus.UInt32(0))
 
                 def xdo(*args):
@@ -217,6 +217,42 @@ def main():
                         if "QUOTAMATE_X11_PROBE pet " in line:
                             print(line.rstrip(), flush=True)
                     return
+                if options.rapid_display_switches > 0:
+                    def settled_mode(mode):
+                        stable_since = None
+                        def check():
+                            nonlocal stable_since
+                            current = json.loads(config_path.read_text())
+                            compact = mode == "Top bar quota"
+                            pet = mode == "Desktop pet"
+                            title = next(title for _, title in entries() if mode in title)
+                            matches = (current["compactWidgetEnabled"] == compact
+                                       and current["petEnabled"] == pet
+                                       and label() == ("5h 80% · W 65%" if compact else "")
+                                       and bool(pet_window()) == pet
+                                       and title.startswith("●"))
+                            if not matches:
+                                stable_since = None
+                                return False
+                            stable_since = stable_since or time.monotonic()
+                            return time.monotonic() - stable_since >= 0.5
+                        return check
+
+                    click("Desktop pet")
+                    wait_for(settled_mode("Desktop pet"), "pet mode before rapid native-menu switches", app)
+                    sequences = [
+                        ("Top bar quota", ("Hidden", "Top bar quota")),
+                        ("Desktop pet", ("Hidden", "Top bar quota", "Desktop pet")),
+                        ("Hidden", ("Top bar quota", "Desktop pet", "Hidden")),
+                    ]
+                    for final_mode, sequence in sequences:
+                        # No condition wait or artificial pause between menu
+                        # events: older work must not override the last choice.
+                        for _ in range(options.rapid_display_switches):
+                            for mode in sequence:
+                                click(mode)
+                        wait_for(settled_mode(final_mode),
+                                 f"{options.rapid_display_switches} rapid sequences keep final {final_mode} across config/menu/window/label", app)
                 last_position = None
                 for cycle in range(8):
                     click("Desktop pet")
@@ -325,6 +361,7 @@ def main():
                                 output = "\n".join(line.strip() for line in output.splitlines() if "Map State:" in line or "Override Redirect State:" in line)
                             print(f"X window {window}: {output.strip()}", file=sys.stderr)
                     if watcher.item:
+                        print(f"Panel label diagnostic: {label()!r}", file=sys.stderr)
                         print(f"Tray menu diagnostic: {entries()}", file=sys.stderr)
                 except (OSError, NameError, dbus.DBusException) as diagnostic_error:
                     print(f"X/menu diagnostic failed: {diagnostic_error}", file=sys.stderr)
