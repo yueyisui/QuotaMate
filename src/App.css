@@ -184,6 +184,8 @@ input[type="range"] { padding: 0; accent-color: var(--accent); }
 .pet-svg { display: block; width: 100%; height: 100%; overflow: visible; transition: filter .35s ease, transform .35s ease; }
 .pet-svg--full { filter: drop-shadow(0 0 7px rgba(109,93,252,.18)); }
 .pet-svg--empty { filter: saturate(.72); transform: translateY(5px) rotate(-1deg); }
+/* Give percentage-sized avatars a definite column on WebKitGTK. */
+.pet-window--linux:not(.pet-window--expanded) { grid-template-columns: minmax(0, 1fr); }
 /* Transparent WebKitGTK windows should draw the pet without a surrounding glow. */
 .pet-window--linux .pet-character,
 .pet-window--linux .custom-pet-stage,

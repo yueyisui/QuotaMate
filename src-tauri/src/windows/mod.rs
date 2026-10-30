@@ -18,6 +18,8 @@ use crate::{
 
 #[cfg(target_os = "linux")]
 mod linux;
+#[cfg(target_os = "linux")]
+mod linux_geometry;
 
 pub fn show_main(app: &AppHandle, page: Option<&str>) -> Result<(), String> {
     hide_menu_bar_panel(app)?;
@@ -170,6 +172,7 @@ pub fn show_pet(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
     let (width, height) = pet_collapsed_size(config);
     let _ = app.emit_to("pet", "pet-collapse", ());
     let window = if let Some(window) = app.get_webview_window("pet") {
+        #[cfg(not(target_os = "linux"))]
         window
             .set_size(tauri::LogicalSize::new(width, height))
             .map_err(|error| error.to_string())?;
@@ -192,7 +195,7 @@ pub fn show_pet(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
                 .map_err(|error| error.to_string())?;
         #[cfg(target_os = "linux")]
         {
-            configure_pet_initial_size(&window, width, height)?;
+            linux_geometry::configure(&window)?;
             linux::configure_pet(&window)?;
         }
         attach_hide_on_close(&window);
@@ -213,30 +216,6 @@ pub fn show_pet(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
     #[cfg(not(target_os = "linux"))]
     apply_position(&window, config.pet_position.as_ref(), 28, 90)?;
     window.show().map_err(|error| error.to_string())
-}
-
-#[cfg(target_os = "linux")]
-fn configure_pet_initial_size(
-    window: &WebviewWindow,
-    width: f64,
-    height: f64,
-) -> Result<(), String> {
-    window
-        .with_webview(move |webview| {
-            use gtk::prelude::*;
-            if let Some(native) = webview.inner().toplevel().and_downcast::<gtk::Window>() {
-                let first_map = std::cell::Cell::new(true);
-                native.connect_map(move |native| {
-                    if first_map.replace(false) {
-                        // GTK can initially map a non-resizable Tauri window at
-                        // its 200x200 default. Request the configured size once
-                        // it is mapped, before the first loaded pet is painted.
-                        native.resize(width.round() as i32, height.round() as i32);
-                    }
-                });
-            }
-        })
-        .map_err(|error| error.to_string())
 }
 
 #[cfg(target_os = "linux")]
@@ -268,9 +247,7 @@ fn apply_pet_position(
     // Tao's initial cached size may still be zero before ConfigureNotify.
     // Bounds must use the requested size so a fresh pet stays on screen.
     let safe = safe_position_with_size(window, requested, size)?;
-    window
-        .set_position(Position::Physical(safe))
-        .map_err(|error| error.to_string())
+    linux_geometry::place(window, width, height, safe)
 }
 
 pub fn set_pet_expanded(app: &AppHandle, config: &AppConfig, expanded: bool) -> Result<(), String> {
@@ -382,32 +359,25 @@ fn pet_collapsed_size(config: &AppConfig) -> (f64, f64) {
     (width, height)
 }
 
+#[cfg(target_os = "linux")]
+fn resize_from_bottom_right(window: &WebviewWindow, width: f64, height: f64) -> Result<(), String> {
+    linux_geometry::resize_from_bottom_right(window, width, height)
+}
+
+#[cfg(not(target_os = "linux"))]
 fn resize_from_bottom_right(window: &WebviewWindow, width: f64, height: f64) -> Result<(), String> {
     let scale = window.scale_factor().map_err(|error| error.to_string())?;
     let old_size = window.outer_size().map_err(|error| error.to_string())?;
     let old_position = window.outer_position().map_err(|error| error.to_string())?;
     let new_width = (width * scale).round() as i32;
     let new_height = (height * scale).round() as i32;
-    // Keep the pointer inside the expanding GTK window while it is moved to
-    // its anchor. Moving the old small window first triggers a transient leave.
-    #[cfg(target_os = "linux")]
-    window
-        .set_size(tauri::LogicalSize::new(width, height))
-        .map_err(|error| error.to_string())?;
     let anchored_position = PhysicalPosition::new(
         old_position.x + old_size.width as i32 - new_width,
         old_position.y + old_size.height as i32 - new_height,
     );
-    #[cfg(target_os = "linux")]
-    let anchored_position = safe_position_with_size(
-        window,
-        anchored_position,
-        tauri::PhysicalSize::new(new_width as u32, new_height as u32),
-    )?;
     window
         .set_position(Position::Physical(anchored_position))
         .map_err(|error| error.to_string())?;
-    #[cfg(not(target_os = "linux"))]
     window
         .set_size(tauri::LogicalSize::new(width, height))
         .map_err(|error| error.to_string())?;
@@ -441,7 +411,12 @@ fn attach_position_persistence(window: &WebviewWindow, kind: &'static str) {
     let tracked_window = window.clone();
     let move_generation = Arc::new(AtomicU64::new(0));
     window.on_window_event(move |event| {
-        if !matches!(event, WindowEvent::Moved(_)) {
+        #[cfg(target_os = "linux")]
+        let changed = matches!(event, WindowEvent::Moved(_))
+            || (kind == "pet" && matches!(event, WindowEvent::Resized(_)));
+        #[cfg(not(target_os = "linux"))]
+        let changed = matches!(event, WindowEvent::Moved(_));
+        if !changed {
             return;
         }
         // Do not perform I/O or reposition the window while the OS is delivering
@@ -455,14 +430,67 @@ fn attach_position_persistence(window: &WebviewWindow, kind: &'static str) {
             if move_generation.load(Ordering::Relaxed) != generation {
                 return;
             }
+            #[cfg(target_os = "linux")]
+            let native_geometry = if kind == "pet" {
+                // A drag can overtake a native move acknowledgement. Wait
+                // across the controller's bounded recovery instead of losing
+                // the final position when no further native event follows it.
+                let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+                loop {
+                    if move_generation.load(Ordering::Relaxed) != generation {
+                        return;
+                    }
+                    let geometry = tokio::time::timeout_at(
+                        deadline,
+                        linux_geometry::stable_geometry(&tracked_window),
+                    )
+                    .await
+                    .ok()
+                    .flatten();
+                    if let Some(geometry) = geometry {
+                        break Some(geometry);
+                    }
+                    if tokio::time::Instant::now() >= deadline {
+                        return;
+                    }
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+            } else {
+                None
+            };
+            #[cfg(target_os = "linux")]
+            if kind == "pet" && move_generation.load(Ordering::Relaxed) != generation {
+                return;
+            }
+            #[cfg(target_os = "linux")]
+            let (current_position, outer_size, scale_factor) =
+                if let Some(geometry) = native_geometry {
+                    (geometry.0, Some(geometry.1), Some(geometry.2))
+                } else {
+                    let Ok(position) = tracked_window.outer_position() else {
+                        return;
+                    };
+                    (
+                        position,
+                        tracked_window.outer_size().ok(),
+                        tracked_window.scale_factor().ok(),
+                    )
+                };
+            #[cfg(not(target_os = "linux"))]
             let Ok(current_position) = tracked_window.outer_position() else {
                 return;
             };
+            #[cfg(not(target_os = "linux"))]
             let outer_size = tracked_window.outer_size().ok();
+            #[cfg(not(target_os = "linux"))]
             let scale_factor = tracked_window.scale_factor().ok();
             let state = app.state::<Arc<AppState>>();
             let snapshot = {
                 let mut current = state.config.write().await;
+                #[cfg(target_os = "linux")]
+                if kind == "pet" && move_generation.load(Ordering::Relaxed) != generation {
+                    return;
+                }
                 let mut position = WindowPosition {
                     x: current_position.x,
                     y: current_position.y,
@@ -500,6 +528,7 @@ fn attach_position_persistence(window: &WebviewWindow, kind: &'static str) {
     });
 }
 
+#[cfg(not(target_os = "linux"))]
 fn apply_position(
     window: &WebviewWindow,
     saved: Option<&WindowPosition>,
@@ -517,6 +546,7 @@ fn apply_position(
     }
 }
 
+#[cfg(not(target_os = "linux"))]
 fn place_bottom_right(
     window: &WebviewWindow,
     right_margin: i32,
@@ -549,6 +579,7 @@ fn place_bottom_right(
         .map_err(|error| error.to_string())
 }
 
+#[cfg(not(target_os = "linux"))]
 fn safe_initial_position(
     window: &WebviewWindow,
     requested: PhysicalPosition<i32>,

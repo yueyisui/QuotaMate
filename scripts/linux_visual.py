@@ -15,6 +15,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import shlex
@@ -42,6 +43,7 @@ from linux_smoke import MOCK_CODEX, Watcher
 
 
 BACKGROUND = (22, 39, 58)
+PRESENTATION = None
 
 
 def pump(seconds=0):
@@ -77,14 +79,31 @@ def geometry(window):
             if key in {"X", "Y", "WIDTH", "HEIGHT"}}
 
 
-def capture(rect, path):
+def capture(rect, path, normalize_marker=True):
     root = Gdk.get_default_root_window()
     pixbuf = Gdk.pixbuf_get_from_window(root, rect["X"], rect["Y"], rect["WIDTH"], rect["HEIGHT"])
     if pixbuf is None:
         raise RuntimeError("Composited root-window capture failed")
-    pixbuf.savev(str(path), "png", [], [])
-    with Image.open(path) as image:
-        return image.convert("RGB")
+    image = Image.frombytes("RGB", (pixbuf.get_width(), pixbuf.get_height()),
+                            bytes(pixbuf.get_pixels()), "raw", "RGB", pixbuf.get_rowstride())
+    if normalize_marker and PRESENTATION is not None:
+        marker = PRESENTATION.marker_rectangle()
+        left = max(0, marker["X"] - rect["X"])
+        top = max(0, marker["Y"] - rect["Y"])
+        right = min(rect["WIDTH"], marker["X"] + marker["WIDTH"] - rect["X"])
+        bottom = min(rect["HEIGHT"], marker["Y"] + marker["HEIGHT"] - rect["Y"])
+        if left < right and top < bottom:
+            # These are only the pixels of our opaque test-only marker, placed
+            # outside .pet-window in its unused top-left padding. Assert the
+            # exact presentation token before restoring that known background;
+            # every application pixel retains the original strict comparison.
+            pixels = list(image.crop((left, top, right, bottom)).getdata())
+            if any(tuple(pixel) != tuple(PRESENTATION.color) for pixel in pixels):
+                raise RuntimeError("Captured frame does not contain the current presentation token")
+            image.paste(BACKGROUND, (left, top, right, bottom))
+        path.with_suffix(".json").write_text(json.dumps(PRESENTATION.last_barrier, indent=2) + "\n")
+    image.save(path)
+    return image
 
 
 def difference(actual, expected, tolerance=3):
@@ -98,8 +117,11 @@ def difference(actual, expected, tolerance=3):
 
 
 class Commands:
-    def __init__(self, path, app):
-        self.path, self.app, self.sequence = path, app, 0
+    def __init__(self, path, app, window):
+        self.path, self.app, self.window, self.sequence = path, app, window, 0
+        self.expected, self.hidden, self.paused = {}, False, False
+        self.color, self.marker, self.last_barrier = None, None, None
+        self.barriers = []
 
     def run(self, body, timeout=20):
         self.sequence += 1
@@ -131,13 +153,105 @@ class Commands:
         return response.get("result")
 
     def patch(self, **changes):
-        return self.run("""
+        next_config = self.run("""
 const invoke = window.__TAURI_INTERNALS__.invoke;
 const config = await invoke('get_config');
 const next = await invoke('save_config', {next: {...config, ...CHANGES}});
 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 return next;
 """.replace("CHANGES", json.dumps(changes)))
+        self.expected = {key: next_config[key] for key in ("petPreset", "petScale", "opacity")}
+        self.synchronize()
+        return next_config
+
+    def marker_rectangle(self):
+        actual = geometry(self.window)
+        ratio = self.marker["ratio"]
+        box = self.marker["rect"]
+        left, top = math.floor(box["x"] * ratio), math.floor(box["y"] * ratio)
+        right = math.ceil((box["x"] + box["width"]) * ratio)
+        bottom = math.ceil((box["y"] + box["height"]) * ratio)
+        return {"X": actual["X"] + left, "Y": actual["Y"] + top,
+                "WIDTH": right - left, "HEIGHT": bottom - top}
+
+    def synchronize(self, **expected_changes):
+        global PRESENTATION
+        self.expected.update(expected_changes)
+        token = self.sequence + 1
+        self.color = [211, (token >> 8) & 255, token & 255]
+        started = time.monotonic()
+        state = self.run("""
+const expected = EXPECTED;
+const hidden = HIDDEN;
+const paused = PAUSED;
+const color = COLOR;
+const rect = node => {
+  if (!node) return null;
+  const value = node.getBoundingClientRect();
+  return {x:value.x,y:value.y,width:value.width,height:value.height};
+};
+const sample = () => {
+  const root = document.querySelector('.pet-window');
+  const character = document.querySelector('.pet-character');
+  const svg = document.querySelector('.pet-character .pet-svg');
+  const custom = document.querySelector('.custom-pet-stage');
+  const style = root && getComputedStyle(root);
+  const quotas = {weekly:document.querySelector('.pet-quota--weekly strong')?.textContent,
+    fiveHour:document.querySelector('.pet-quota--five strong')?.textContent};
+  const presetMatches = expected.petPreset === 'custom'
+    ? custom && getComputedStyle(custom).backgroundImage !== 'none'
+    : svg && svg.classList.contains('pet-svg--' + expected.petPreset);
+  const target = {width:Math.max(200,Math.round(220*expected.petScale)),height:Math.max(200,Math.round(270*expected.petScale))};
+  return {ready: !!(root && character && presetMatches
+      && Math.abs(Number(style.opacity)-expected.opacity)<0.00001
+      && (style.visibility==='hidden')===hidden
+      && (!paused || getComputedStyle(character).animationName==='none')
+      && innerWidth===target.width && innerHeight===target.height
+      && quotas.weekly==='65%' && quotas.fiveHour==='80%'),
+    preset:svg?.getAttribute('class') || (custom?'custom':null),
+    opacity:style?.opacity,visibility:style?.visibility,
+    gridColumns:style?.gridTemplateColumns,justifyContent:style?.justifyContent,
+    root:rect(root),character:rect(character),svg:rect(svg),
+    viewport:{width:innerWidth,height:innerHeight},target,quotas,ratio:devicePixelRatio};
+};
+const deadline = performance.now()+10000;
+let state;
+while (!(state=sample()).ready) {
+  if (performance.now()>deadline) throw new Error('React configuration not committed: '+JSON.stringify({expected,state}));
+  await new Promise(resolve => requestAnimationFrame(resolve));
+}
+window.__quotamateVisualObserver?.disconnect();
+let marker = document.getElementById('quotamate-visual-presented');
+if (!marker) { marker=document.createElement('div'); marker.id='quotamate-visual-presented'; document.body.append(marker); }
+marker.style.cssText='position:fixed!important;left:0!important;top:0!important;width:2px!important;height:2px!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;opacity:1!important;visibility:visible!important;display:block!important;pointer-events:none!important;z-index:2147483647!important;transform:none!important;filter:none!important;box-shadow:none!important;mix-blend-mode:normal!important;';
+const refresh = () => { marker.style.backgroundColor=sample().ready?'rgb('+color.join(',')+')':'rgb(0,0,0)'; };
+refresh();
+window.__quotamateVisualObserver = new MutationObserver(refresh);
+window.__quotamateVisualObserver.observe(document.getElementById('root'), {subtree:true,childList:true,attributes:true});
+return {...state,marker:{rect:rect(marker),ratio:devicePixelRatio}};
+""".replace("EXPECTED", json.dumps(self.expected))
+            .replace("HIDDEN", "true" if self.hidden else "false")
+            .replace("PAUSED", "true" if self.paused else "false")
+            .replace("COLOR", json.dumps(self.color)))
+        self.marker = state["marker"]
+
+        def presented():
+            box = self.marker_rectangle()
+            pixbuf = Gdk.pixbuf_get_from_window(Gdk.get_default_root_window(), box["X"], box["Y"], box["WIDTH"], box["HEIGHT"])
+            if pixbuf is None:
+                return False
+            raw, stride, channels = bytes(pixbuf.get_pixels()), pixbuf.get_rowstride(), pixbuf.get_n_channels()
+            expected = bytes(self.color)
+            return all(raw[y * stride + x * channels:y * stride + x * channels + 3] == expected
+                       for y in range(box["HEIGHT"]) for x in range(box["WIDTH"]))
+
+        wait(presented, f"compositor presentation token {token}", self.app, timeout=20)
+        self.last_barrier = {"token": token, "color": self.color, "expected": dict(self.expected),
+                             "hidden": self.hidden, "paused": self.paused, "dom": state,
+                             "native": geometry(self.window),
+                             "elapsedMs": round((time.monotonic() - started) * 1000, 2)}
+        self.barriers.append(self.last_barrier)
+        PRESENTATION = self
 
     def hide(self, hidden):
         self.run("""
@@ -147,6 +261,8 @@ style.textContent = HIDDEN ? '.pet-window { visibility: hidden !important; }' : 
 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 return {hidden:HIDDEN};
 """.replace("HIDDEN", "true" if hidden else "false"))
+        self.hidden = hidden
+        self.synchronize()
 
     def pause(self, paused):
         self.run("""
@@ -156,6 +272,8 @@ style.textContent = PAUSED ? '*, *::before, *::after { animation: none !importan
 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 return {paused:PAUSED};
 """.replace("PAUSED", "true" if paused else "false"))
+        self.paused = paused
+        self.synchronize()
 
 
 def compile_probe(path):
@@ -227,7 +345,8 @@ def generate_transparent_gif(path):
 
 
 def run(args):
-    global Gdk, Gtk
+    global Gdk, Gtk, PRESENTATION
+    PRESENTATION = None
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     report = {"status": "failed", "binary": str(args.binary.resolve()),
@@ -337,12 +456,55 @@ def run(args):
                     return None
 
             pet = wait(test_pet_window, "isolated test pet's native window", app)
-            commands = Commands(home / "command.js", app)
+            commands = Commands(home / "command.js", app, pet)
+            report["presentationBarriers"] = commands.barriers
+            if args.test_css:
+                css = args.test_css.read_text()
+                report["diagnosticCss"] = {"path": str(args.test_css.resolve()),
+                                           "sha256": hashlib.sha256(css.encode()).hexdigest()}
+                commands.run("const style=document.createElement('style'); style.textContent=CSS; document.head.append(style); return true;"
+                             .replace("CSS", json.dumps(css)))
+
+            properties = dbus.Interface(bus.get_object(*watcher.item), "org.freedesktop.DBus.Properties")
+            menu_path = properties.Get("org.kde.StatusNotifierItem", "Menu")
+            menu = dbus.Interface(bus.get_object(watcher.item[0], menu_path), "com.canonical.dbusmenu")
+
+            def click_menu(text):
+                def flatten(node):
+                    yield int(node[0]), str(node[1].get("label", ""))
+                    for child in node[2]:
+                        yield from flatten(child)
+                identifier = next(identifier for identifier, title in flatten(menu.GetLayout(0, -1, ["label"])[1]) if text in title)
+                menu.Event(dbus.Int32(identifier), "clicked", dbus.Int32(0), dbus.UInt32(0))
+
+            def pet_visible():
+                result = xdo("search", "--onlyvisible", "--name", "^QuotaMate Pet$", check=False)
+                return str(pet) in result.stdout.splitlines()
+
+            def stable_native_position(expected, size=(200, 200)):
+                stable_since = None
+
+                def matches():
+                    nonlocal stable_since
+                    actual = geometry(pet)
+                    saved = json.loads(config.read_text()).get("petPosition") or {}
+                    report["lastGeometryObservation"] = {"native": actual, "savedPosition": saved,
+                                                         "expectedPosition": expected, "expectedSize": list(size)}
+                    valid = actual["X"] == expected["x"] and actual["Y"] == expected["y"] and saved == expected
+                    valid = valid and (actual["WIDTH"], actual["HEIGHT"]) == size
+                    if not valid:
+                        stable_since = None
+                        return False
+                    stable_since = stable_since or time.monotonic()
+                    return time.monotonic() - stable_since >= 0.6
+
+                return matches
             wait(lambda: commands.run("return !!document.querySelector('.pet-character');"), "rendered pet DOM", app)
             commands.patch(petPreset="car", petScale=1, opacity=0.65)
             commands.pause(True)
             xdo("windowmove", pet, 400, 300)
             xdo("mousemove", 0, 0)
+            commands.synchronize()
             pump(0.9)
             pet_rect = geometry(pet)
             report["petGeometry"] = pet_rect
@@ -382,6 +544,7 @@ def run(args):
             commands.hide(False)
             for position in ((250, 220), (450, 320), (350, 250), (400, 300)):
                 xdo("windowmove", pet, *position)
+                commands.synchronize()
                 pump(0.5)
             commands.hide(True)
             pump(0.7)
@@ -401,6 +564,7 @@ def run(args):
                     commands.hide(False)
                     commands.patch(petPreset="car", petScale=scale, opacity=opacity)
                     xdo("windowmove", pet, 400, 300)
+                    commands.synchronize()
                     pump(0.5)
                     matrix_reference = capture(geometry(pet), output / f"{suffix}-reference.png")
                     for preset in ("tiga", "cat", "robot", "dog", "rocket", "car"):
@@ -417,6 +581,7 @@ def run(args):
             commands.hide(False)
             commands.patch(petPreset="car", petScale=1, opacity=0.65)
             xdo("windowmove", pet, 400, 300)
+            commands.synchronize()
             pump(0.5)
             rapid_reference = capture(geometry(pet), output / "rapid-reference.png")
             commands.run("""
@@ -431,6 +596,7 @@ for (let cycle=0; cycle<3; cycle++) {
 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 return {switches:18};
 """)
+            commands.synchronize()
             pump(0.5)
             rapid_final = capture(geometry(pet), output / "rapid-roundtrip.png")
             check("18 rapid preset changes preserve the final car pixels", difference(rapid_final, rapid_reference))
@@ -440,12 +606,53 @@ return {switches:18};
             check("rapid preset changes leave no residual pixels", difference(rapid_clear, background_reference))
             commands.hide(False)
 
+            commands.patch(petPreset="car", petScale=0.7, opacity=0.65)
+            xdo("windowmove", pet, 400, 300)
+            commands.synchronize()
+            anchor = {"x": 400, "y": 300}
+            wait(stable_native_position(anchor), "initial native anchor for scale stress", app)
+            commands.patch(petScale=1.5)
+            wait(stable_native_position({"x": 270, "y": 95}, (330, 405)), "scaled pet keeps the same bottom-right anchor", app)
+            commands.patch(petScale=0.7)
+            wait(stable_native_position(anchor), "0.7→1.5→0.7 restores exact native position", app)
+            check("scale roundtrip preserves exact native and saved position", {"pass": True, "anchor": anchor, "native": geometry(pet)})
+
+            commands.run("""
+const invoke = window.__TAURI_INTERNALS__.invoke;
+await Promise.all(Array.from({length:16}, (_,index) => invoke('set_pet_expanded',{expanded:index%2===0})));
+await invoke('set_pet_expanded',{expanded:false});
+return {transitions:17};
+""")
+            commands.synchronize()
+            wait(stable_native_position(anchor), "rapid expand/collapse preserves native anchor", app)
+            check("rapid expand/collapse preserves exact native and saved position", {"pass": True, "anchor": anchor, "native": geometry(pet)})
+
+            for preset in ("robot", "tiga", "car"):
+                # Deliberately do not wait for a rendered frame before hiding.
+                # Hidden WebViews throttle rAF; reopen through the real native
+                # menu, then require both a presented token and stable geometry.
+                commands.run("""
+const invoke=window.__TAURI_INTERNALS__.invoke;
+const config=await invoke('get_config');
+await invoke('save_config',{next:{...config,petPreset:PRESET}});
+return true;
+""".replace("PRESET", json.dumps(preset)))
+                click_menu("Hidden")
+                wait(lambda: not pet_visible(), "pet hides immediately after preset change", app)
+                click_menu("Desktop pet")
+                wait(pet_visible, "native menu reopens the test pet", app)
+                commands.synchronize(petPreset=preset)
+                wait(stable_native_position(anchor), "immediate hide/reopen preserves native anchor", app)
+            check("preset changes followed by immediate hide/reopen preserve position", {"pass": True, "reopens": 3, "anchor": anchor, "native": geometry(pet)})
+            commands.patch(petPreset="car", petScale=1, opacity=0.65)
+
             gif = output / "transparent-moving-pet.gif"
             generate_transparent_gif(gif)
             commands.run("await window.__TAURI_INTERNALS__.invoke('import_pet_image', {source:SOURCE}); return true;"
                          .replace("SOURCE", json.dumps(str(gif))))
             wait(lambda: commands.run("return !!document.querySelector('.custom-pet-stage');"),
                  "imported transparent animated GIF", app)
+            commands.synchronize(petPreset="custom")
             pump(0.5)
             gif_frames = []
             for frame in range(8):
@@ -468,6 +675,16 @@ return {switches:18};
             report["status"] = "passed" if all(item["pass"] for item in report["checks"]) else "failed"
     except Exception as error:
         report["error"] = str(error)
+        try:
+            if "background_rect" in locals():
+                capture(background_rect, output / "failure-state.png", normalize_marker=False)
+            if "pet" in locals():
+                report["failureGeometry"] = geometry(pet)
+            if "config" in locals():
+                report["failureSavedPosition"] = (json.loads(config.read_text()).get("petPosition")
+                                                   if config.exists() else report.get("lastGeometryObservation", {}).get("savedPosition"))
+        except Exception as diagnostic_error:
+            report["diagnosticError"] = str(diagnostic_error)
         traceback.print_exc()
     finally:
         if original_mouse:
@@ -504,6 +721,7 @@ def main():
     parser.add_argument("binary", type=Path)
     parser.add_argument("--output", type=Path, default=Path("artifacts/linux-visual"))
     parser.add_argument("--no-wm", action="store_true", help="Use the current physical display and compositor; creates no Xvfb/WM")
+    parser.add_argument("--test-css", type=Path, help="Diagnostic-only CSS injection; recorded in report, never used for package acceptance")
     args = parser.parse_args()
     if not os.environ.get("QUOTAMATE_VISUAL_PRIVATE_BUS"):
         env = {**os.environ, "QUOTAMATE_VISUAL_PRIVATE_BUS": "1"}

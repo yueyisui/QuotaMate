@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Exercise the packaged Linux app on a private D-Bus session with a fake Codex.
 
-Run: dbus-run-session -- xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /path/to/quotamate
+Run: xvfb-run -a /usr/bin/python3 scripts/linux_smoke.py /path/to/quotamate
 Requires python3-dbus, python3-gi, Xvfb, xdotool, Openbox and a C compiler.
 No real Codex account is used.
 """
 import datetime
+import argparse
 import json
 import os
 from pathlib import Path
@@ -90,7 +91,27 @@ def wait_for(check, description, process, timeout=35):
 
 
 def main():
-    binary = str(Path(sys.argv[1]).resolve())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("binary", type=Path)
+    parser.add_argument("--first-open-only", action="store_true", help="Diagnose a fresh tray-to-pet opening without later cycles")
+    parser.add_argument("--menu-about-to-show", action="store_true", help="Send the tray host's AboutToShow lifecycle call before each menu event")
+    parser.add_argument("--trace-native", action="store_true", help="Retain test-probe GTK map/configure diagnostics on success too")
+    options = parser.parse_args()
+    if not os.environ.get("QUOTAMATE_SMOKE_PRIVATE_BUS"):
+        env = {**os.environ, "QUOTAMATE_SMOKE_PRIVATE_BUS": "1"}
+        # A private session must not auto-activate host portals or keyrings,
+        # which would otherwise inherit the real user's HOME from an outer
+        # dbus-run-session. Keep those unrelated services outside this test.
+        with tempfile.TemporaryDirectory(prefix="quotamate-smoke-bus-") as directory:
+            bus_config = Path(directory) / "session.conf"
+            bus_config.write_text('''<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig><type>session</type><listen>unix:tmpdir=/tmp</listen><auth>EXTERNAL</auth>
+<policy context="default"><allow send_destination="*"/><allow receive_sender="*"/><allow own="*"/></policy>
+</busconfig>''')
+            return subprocess.run(["dbus-run-session", f"--config-file={bus_config}", "--", sys.executable,
+                                   str(Path(__file__).resolve()), *sys.argv[1:]], env=env).returncode
+    binary = str(options.binary.resolve())
     # Give the scheduler a full minute even if CI starts at a minute boundary.
     second = datetime.datetime.now().second
     if second >= 50:
@@ -141,7 +162,11 @@ def main():
                     return list(flatten(menu.GetLayout(0, -1, ["label"])[1]))
 
                 def click(text):
+                    if options.menu_about_to_show:
+                        menu.AboutToShow(dbus.Int32(0))
                     entry = next(identifier for identifier, title in entries() if text in title)
+                    if options.first_open_only:
+                        print(f"MENU: {text} id={entry} aboutToShow={options.menu_about_to_show}", flush=True)
                     menu.Event(dbus.Int32(entry), "clicked", dbus.Int32(0), dbus.UInt32(0))
 
                 def xdo(*args):
@@ -179,6 +204,19 @@ def main():
                     return check
 
                 wait_for(lambda: any("5h 80% · W 65%" in title for _, title in entries()), "live quota in native menu", app)
+                if options.first_open_only:
+                    click("Desktop pet")
+                    pet = wait_for(pet_window, "first pet visible", app)
+                    wait_for(lambda: label() == "", "first pet mode clears panel label", app)
+                    print(f"PASS: first pet geometry {geometry(pet)}", flush=True)
+                    click("Exit")
+                    assert app.wait(timeout=15) == 0
+                    log.flush()
+                    log.seek(0)
+                    for line in log:
+                        if "QUOTAMATE_X11_PROBE pet " in line:
+                            print(line.rstrip(), flush=True)
+                    return
                 last_position = None
                 for cycle in range(8):
                     click("Desktop pet")
@@ -261,9 +299,35 @@ def main():
                 assert "QUOTAMATE_X11_PROBE init=1" in output, "Xlib thread support must be initialized"
                 assert "QUOTAMATE_X11_PROBE open initialized=1" in output, "Probe must observe a real display connection"
                 assert "QUOTAMATE_X11_PROBE open initialized=0" not in output, "XInitThreads must precede every QuotaMate display connection"
+                if options.trace_native:
+                    for line in output.splitlines():
+                        if "QUOTAMATE_X11_PROBE pet " in line:
+                            print(line, flush=True)
                 print("PASS: Xlib thread support initialized before opening displays", flush=True)
                 print("PASS: clean exit from indicator menu", flush=True)
             except Exception:
+                print(f"Window manager diagnostic: pid={wm.pid} returncode={wm.poll()}", file=sys.stderr)
+                try:
+                    config = json.loads(config_path.read_text())
+                    fields = ("petEnabled", "compactWidgetEnabled", "petPreset", "petScale", "petPosition", "petAlwaysOnTop")
+                    print("Fake configuration diagnostic: " + json.dumps({key: config.get(key) for key in fields}), file=sys.stderr)
+                except (OSError, json.JSONDecodeError) as diagnostic_error:
+                    print(f"Configuration diagnostic failed: {diagnostic_error}", file=sys.stderr)
+                try:
+                    found = subprocess.run(["xdotool", "search", "--name", "QuotaMate"], capture_output=True, text=True)
+                    print(f"All QuotaMate X windows (including hidden): {found.stdout.strip() or '(none)'}", file=sys.stderr)
+                    for window in found.stdout.splitlines():
+                        for command in (["xdotool", "getwindowname", window], ["xdotool", "getwindowgeometry", "--shell", window],
+                                        ["xwininfo", "-id", window]):
+                            result = subprocess.run(command, capture_output=True, text=True)
+                            output = result.stdout
+                            if command[0] == "xwininfo":
+                                output = "\n".join(line.strip() for line in output.splitlines() if "Map State:" in line or "Override Redirect State:" in line)
+                            print(f"X window {window}: {output.strip()}", file=sys.stderr)
+                    if watcher.item:
+                        print(f"Tray menu diagnostic: {entries()}", file=sys.stderr)
+                except (OSError, NameError, dbus.DBusException) as diagnostic_error:
+                    print(f"X/menu diagnostic failed: {diagnostic_error}", file=sys.stderr)
                 try:
                     if pet_window():
                         print(f"Pet geometry at failure: {geometry(pet_window())}", file=sys.stderr)
@@ -282,4 +346,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

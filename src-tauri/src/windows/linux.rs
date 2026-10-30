@@ -89,7 +89,16 @@ pub(super) fn configure_pet(window: &WebviewWindow) -> Result<(), String> {
                     webkit2gtk::ffi::webkit_get_micro_version(),
                 )
             };
-            if !has_transparent_copy_fix(major, minor, micro) {
+            let native_renderer = has_transparent_copy_fix(major, minor, micro);
+            log::info!(
+                "Pet renderer: WebKitGTK {major}.{minor}.{micro}, {}",
+                if native_renderer {
+                    "native"
+                } else {
+                    "transparent-frame compatibility"
+                }
+            );
+            if !native_renderer {
                 install_renderer(&view);
             }
         })
