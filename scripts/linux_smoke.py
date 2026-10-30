@@ -116,6 +116,10 @@ def main():
                "XDG_DATA_HOME": str(root / "data"), "XDG_CACHE_HOME": str(root / "cache"),
                "CODEX_HOME": str(root / "codex-home"), "CODEX_CLI_PATH": str(mock),
                "QUOTAMATE_SMOKE_RUNS": str(root / "runs"), "QUOTAMATE_SMOKE_WEEKLY": str(root / "weekly"),
+               # Xvfb has no GPU/DRI display. Use its software rendering path;
+               # this is a test environment setting, independent of real GPUs.
+               "WEBKIT_DISABLE_DMABUF_RENDERER": "1",
+               "NO_AT_BRIDGE": "1",
                "LD_PRELOAD": str(probe), "LIBGL_ALWAYS_SOFTWARE": "1"}
         with (root / "app.log").open("w+") as log:
             wm = subprocess.Popen(["openbox", "--sm-disable"], env=env, stdout=log, stderr=log)
@@ -159,6 +163,12 @@ def main():
                     wait_for(lambda: 140 <= geometry(pet)["WIDTH"] <= 220, "pet opens at a small size", app)
                     assert json.loads(config_path.read_text())["petScale"] == 0.7
                     wait_for(lambda: label() == "", "pet mode clears panel label", app)
+                    # Window managers differ in whether they constrain an
+                    # initial GTK window to the screen. Keep test input visible.
+                    xdo("windowmove", pet, 400, 400)
+                    initial_x = 400 + geometry(pet)["WIDTH"] - 154
+                    wait_for(lambda: (json.loads(config_path.read_text()).get("petPosition") or {}).get("x") == initial_x,
+                             "pet is positioned for pointer input", app)
                     # Real XTest pointer input exercises IPC, native resizing and
                     # the transparent WebKit window, beyond merely mapping it.
                     def expand():
@@ -224,6 +234,11 @@ def main():
                 print("PASS: Xlib thread support initialized before opening displays", flush=True)
                 print("PASS: clean exit from indicator menu", flush=True)
             except Exception:
+                try:
+                    if pet_window():
+                        print(f"Pet geometry at failure: {geometry(pet_window())}", file=sys.stderr)
+                except (NameError, subprocess.CalledProcessError):
+                    pass
                 log.flush()
                 log.seek(0)
                 print(log.read(), file=sys.stderr)
