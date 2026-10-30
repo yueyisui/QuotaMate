@@ -118,9 +118,9 @@ Open [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases/latest) an
 
 | Platform | Current support | Recommended file | Installation |
 | --- | --- | --- | --- |
-| Windows | Windows 10/11 x64 | [0.1.3 installer](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.3/QuotaMate_0.1.3_x64-setup.exe) | Run the installer, or use the portable EXE from the same release |
-| macOS | macOS 10.15+, Apple Silicon | [0.1.3 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.3/QuotaMate_0.1.3_aarch64.dmg) | Open the DMG and drag QuotaMate into Applications |
-| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.3_amd64.deb` / `.AppImage` | Prefer `sudo apt install ./QuotaMate_0.1.3_amd64.deb`; see [Ubuntu setup](docs/ubuntu-first-run.md) |
+| Windows | Windows 10/11 x64 | [0.1.4 installer](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.4/QuotaMate_0.1.4_x64-setup.exe) | Run the installer, or use the portable EXE from the same release |
+| macOS | macOS 10.15+, Apple Silicon | [0.1.4 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.4/QuotaMate_0.1.4_aarch64.dmg) | Open the DMG and drag QuotaMate into Applications |
+| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.4_amd64.deb` / `.AppImage` | Prefer `sudo apt install ./QuotaMate_0.1.4_amd64.deb`; see [Ubuntu setup](docs/ubuntu-first-run.md) |
 
 Before launching, make sure the Codex CLI—or a Codex desktop app that includes it—is installed and signed in. Windows also requires the WebView2 Runtime (already present on most Windows 10/11 systems); macOS uses the system WebKit.
 
@@ -232,12 +232,14 @@ Artifacts are written to `artifacts/windows-x64/`, including the NSIS installer 
 Build on Ubuntu 22.04 LTS for compatibility with both 22.04 and 24.04:
 
 ```bash
-sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf python3 squashfs-tools
 pnpm install --frozen-lockfile
 pnpm tauri:build:linux
 ```
 
 Packages, SHA-256 checksums and first-run notes are written to `artifacts/linux-x64/`. Tauri automatically loads the Linux-specific configuration. Windows and macOS packaging settings retain their existing behavior.
+
+Before bundling, the Linux hook verifies the official AppRun launcher's SHA-256 and sets its cached mode to `0755`. After bundling, `unsquashfs` checks the original permissions stored in the AppImage so other users can read files, execute launchers and traverse directories. An AppImage that fails is not exported. Extract-and-run can change permissions and does not replace this check.
 
 GitHub Actions builds Windows x64, Apple Silicon macOS, and Ubuntu x64 from the same source, and validates the installed Linux app on Ubuntu 24.04. All platforms must pass before publishing in one release. Missing platform packages can be added to an existing tag without replacing existing installers. `SHA256SUMS` covers every platform's installers. Manual runs can build only or publish.
 

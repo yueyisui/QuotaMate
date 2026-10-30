@@ -91,7 +91,9 @@ jobs:
       - name: Install Ubuntu build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xauth dbus-x11 python3-dbus python3-gi
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf squashfs-tools xvfb xauth dbus-x11 python3-dbus python3-gi
+      - name: Test AppImage packaging permission checks
+        run: python3 -m unittest discover -s scripts -p 'test_appimage.py' -v
       - run: pnpm install --frozen-lockfile
       - run: pnpm build && pnpm test:quota
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check

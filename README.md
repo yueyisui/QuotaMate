@@ -118,9 +118,9 @@ QuotaMate 是一个轻量的 Codex 额度助手。它读取本机 Codex CLI 返�
 
 | 平台 | 当前支持 | 推荐文件 | 安装方式 |
 | --- | --- | --- | --- |
-| Windows | Windows 10/11 x64 | [0.1.3 安装包](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.3/QuotaMate_0.1.3_x64-setup.exe) | 运行安装程序；也可下载同版本免安装 EXE |
-| macOS | macOS 10.15+，Apple Silicon | [0.1.3 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.3/QuotaMate_0.1.3_aarch64.dmg) | 打开 DMG，将 QuotaMate 拖入“应用程序” |
-| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.3_amd64.deb` / `.AppImage` | 推荐 `sudo apt install ./QuotaMate_0.1.3_amd64.deb`；见 [Ubuntu 说明](docs/ubuntu-first-run.md) |
+| Windows | Windows 10/11 x64 | [0.1.4 安装包](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.4/QuotaMate_0.1.4_x64-setup.exe) | 运行安装程序；也可下载同版本免安装 EXE |
+| macOS | macOS 10.15+，Apple Silicon | [0.1.4 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.4/QuotaMate_0.1.4_aarch64.dmg) | 打开 DMG，将 QuotaMate 拖入“应用程序” |
+| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.4_amd64.deb` / `.AppImage` | 推荐 `sudo apt install ./QuotaMate_0.1.4_amd64.deb`；见 [Ubuntu 说明](docs/ubuntu-first-run.md) |
 
 运行前请确保 Codex CLI 或包含 Codex CLI 的 Codex 桌面应用已经安装并登录。Windows 还需要 WebView2 Runtime（多数 Windows 10/11 设备已预装）；macOS 使用系统 WebKit。
 
@@ -232,12 +232,14 @@ pnpm tauri:build:windows
 建议在 Ubuntu 22.04 LTS 上构建，以兼容 22.04 和 24.04。安装系统开发依赖及通用依赖后运行：
 
 ```bash
-sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf python3 squashfs-tools
 pnpm install --frozen-lockfile
 pnpm tauri:build:linux
 ```
 
 产物写入 `artifacts/linux-x64/`，包括 `.deb`、AppImage、SHA-256 和首次使用说明。Tauri 自动加载 Linux 专用配置，Windows/macOS 打包配置保持原样。
+
+Linux 打包前会校验官方 AppRun 启动器的 SHA-256，并将缓存权限设为 `0755`。打包后通过 `unsquashfs` 检查 AppImage 内保存的原始权限，确保启动器、程序和目录可供其他用户读取及执行；检查失败时不会导出该 AppImage。解压运行可能改变权限，因此不能替代此检查。
 
 GitHub Actions 从同一份源码构建 Windows x64、Apple Silicon macOS 和 Ubuntu x64，并在 Ubuntu 24.04 上安装验证。所有平台通过检查后，在同一个 Release 中发布；可为已有标签补齐缺少的平台安装包，已有安装包不会被替换。`SHA256SUMS` 统一列出所有平台安装包的校验值。也可手动运行工作流，仅构建或选择发布。
 
