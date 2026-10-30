@@ -291,15 +291,23 @@ fn resize_from_bottom_right(window: &WebviewWindow, width: f64, height: f64) -> 
     let old_position = window.outer_position().map_err(|error| error.to_string())?;
     let new_width = (width * scale).round() as i32;
     let new_height = (height * scale).round() as i32;
+    // Keep the pointer inside the expanding GTK window while it is moved to
+    // its anchor. Moving the old small window first triggers a transient leave.
+    #[cfg(target_os = "linux")]
+    window
+        .set_size(tauri::LogicalSize::new(width, height))
+        .map_err(|error| error.to_string())?;
     window
         .set_position(Position::Physical(PhysicalPosition::new(
             old_position.x + old_size.width as i32 - new_width,
             old_position.y + old_size.height as i32 - new_height,
         )))
         .map_err(|error| error.to_string())?;
+    #[cfg(not(target_os = "linux"))]
     window
         .set_size(tauri::LogicalSize::new(width, height))
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 fn attach_hide_on_close(window: &WebviewWindow) {

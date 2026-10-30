@@ -432,18 +432,32 @@ function DesktopPet() {
   const { usage, config, refresh } = useAppData();
   const [expanded, setExpanded] = useState(false);
   const [image, setImage] = useState<string | null>(null);
+  const collapseTimer = useRef<number | null>(null);
+  const cancelPendingCollapse = () => {
+    if (collapseTimer.current !== null) window.clearTimeout(collapseTimer.current);
+    collapseTimer.current = null;
+  };
   const t = translator(config?.language);
   useEffect(() => { void backend.getPetImageData().then(setImage).catch(() => setImage(null)); }, [config?.petImage]);
-  useEffect(() => { const promise = listen("pet-collapse", () => setExpanded(false)); return () => { void promise.then((unlisten) => unlisten()); }; }, []);
+  useEffect(() => { const promise = listen("pet-collapse", () => { cancelPendingCollapse(); setExpanded(false); }); return () => { cancelPendingCollapse(); void promise.then((unlisten) => unlisten()); }; }, []);
   const toggleExpanded = () => {
+    cancelPendingCollapse();
     const next = !expanded;
     setExpanded(next);
     void backend.setPetExpanded(next);
   };
   const collapseExpanded = () => {
     if (!expanded) return;
-    setExpanded(false);
-    void backend.setPetExpanded(false);
+    const collapse = () => {
+      collapseTimer.current = null;
+      setExpanded(false);
+      void backend.setPetExpanded(false);
+    };
+    if (IS_LINUX) {
+      // GTK can send leave/enter while resizing beneath the pointer.
+      cancelPendingCollapse();
+      collapseTimer.current = window.setTimeout(collapse, 180);
+    } else collapse();
   };
   const collapsedGesture = useClickOrDrag(!expanded, true, toggleExpanded);
   if (!usage || !config) return IS_LINUX ? null : <Loading />;
@@ -455,7 +469,7 @@ function DesktopPet() {
   const preset = config.petPreset === "custom" ? "cat" : config.petPreset as BuiltInPet;
   const usesCustomImage = config.petPreset === "custom" && image;
   return (
-    <div className={`pet-window pet-window--${state.key} ${IS_LINUX ? "pet-window--linux" : ""} ${expanded ? "pet-window--expanded" : ""}`} style={{ opacity: config.opacity, "--pet-energy": state.color } as React.CSSProperties} {...collapsedGesture} onMouseLeave={collapseExpanded} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); void backend.showFloatingContextMenu("pet"); }}>
+    <div className={`pet-window pet-window--${state.key} ${IS_LINUX ? "pet-window--linux" : ""} ${expanded ? "pet-window--expanded" : ""}`} style={{ opacity: config.opacity, "--pet-energy": state.color } as React.CSSProperties} {...collapsedGesture} onMouseEnter={IS_LINUX ? cancelPendingCollapse : undefined} onMouseLeave={collapseExpanded} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); void backend.showFloatingContextMenu("pet"); }}>
       <div className="pet-toolbar" data-tauri-drag-region={expanded ? true : undefined}><span>⠿</span><button data-no-window-gesture title={t("close")} onClick={() => void backend.disableDisplay("pet")}>×</button></div>
       {!expanded && secondaryWindow && <div className="pet-quota pet-quota--weekly"><span>{quotaTitle(secondaryWindow.windowMinutes, config.language)}</span><strong>{Math.round(secondaryWindow.remainingPercent)}%</strong></div>}
       <button className={`pet-character ${usesCustomImage ? "pet-character--custom" : ""}`} aria-label={usesCustomImage ? t("customPetAlt") : t("codexUsage")}>{usesCustomImage ? <span className="custom-pet-stage" style={{ backgroundImage: `url("${image}")` }} /> : <PetAvatar preset={preset} energy={energy} language={config.language} />}</button>
