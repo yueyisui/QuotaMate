@@ -3,7 +3,7 @@
 支持 Ubuntu 22.04 / 24.04 LTS x86_64。推荐使用 `.deb`，安装时会解析 WebKitGTK 和 Ayatana AppIndicator 运行依赖：
 
 ```bash
-sudo apt install ./QuotaMate_0.1.3_amd64.deb
+sudo apt install ./QuotaMate_0.1.4_amd64.deb
 ```
 
 在 Ubuntu 的应用菜单搜索 **QuotaMate**。首次启动默认在右上角显示 `5h …% · W …%`；等待 Codex 返回数据后自动更新。点击图标打开原生菜单，选择额度行或“打开 QuotaMate”查看完整详情，也可刷新、打开计划任务、切换显示模式和退出。关闭主窗口后仍然更新额度并执行已启用的计划任务。
@@ -41,14 +41,14 @@ CODEX_CLI_PATH=/absolute/path/to/codex quotamate
 ## AppImage
 
 ```bash
-chmod +x QuotaMate_0.1.3_amd64.AppImage
-./QuotaMate_0.1.3_amd64.AppImage
+chmod +x QuotaMate_0.1.4_amd64.AppImage
+./QuotaMate_0.1.4_amd64.AppImage
 ```
 
 若系统没有 FUSE，可免挂载运行：
 
 ```bash
-./QuotaMate_0.1.3_amd64.AppImage --appimage-extract-and-run
+./QuotaMate_0.1.4_amd64.AppImage --appimage-extract-and-run
 ```
 
 AppImage 也需要桌面支持 AppIndicator。建议安装 `.deb` 以获得应用菜单和可靠的开机启动路径；若使用 AppImage 并开启自启动，请将文件保存在固定位置。
@@ -57,6 +57,6 @@ AppImage 也需要桌面支持 AppIndicator。建议安装 `.deb` 以获得应�
 
 ## English
 
-Supports Ubuntu 22.04 / 24.04 LTS x86_64. Install the `.deb` with `sudo apt install ./QuotaMate_0.1.3_amd64.deb`, then launch QuotaMate from the application menu. Sign in to the local Codex CLI first. Top-bar quota is enabled by default; click the indicator for current usage and actions. Closing the main window keeps the app running; choose Exit from the indicator menu to quit.
+Supports Ubuntu 22.04 / 24.04 LTS x86_64. Install the `.deb` with `sudo apt install ./QuotaMate_0.1.4_amd64.deb`, then launch QuotaMate from the application menu. Sign in to the local Codex CLI first. Top-bar quota is enabled by default; click the indicator for current usage and actions. Closing the main window keeps the app running; choose Exit from the indicator menu to quit.
 
 GNOME requires the Ubuntu AppIndicators extension. Some desktops only show the icon; live quota remains available in the first menu row. AppImage users can use `--appimage-extract-and-run` without FUSE. Prefer `.deb` for desktop integration and autostart. Scheduled sessions run only while the app and computer are awake. Floating pet positioning and always-on-top behavior depend on the desktop, particularly under Wayland.

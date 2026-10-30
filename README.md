@@ -118,9 +118,9 @@ QuotaMate 是一个轻量的 Codex 额度助手。它读取本机 Codex CLI 返�
 
 | 平台 | 当前支持 | 推荐文件 | 安装方式 |
 | --- | --- | --- | --- |
-| Windows | Windows 10/11 x64 | [0.1.3 安装包](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.3/QuotaMate_0.1.3_x64-setup.exe) | 运行安装程序；也可下载同版本免安装 EXE |
-| macOS | macOS 10.15+，Apple Silicon | [0.1.3 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.3/QuotaMate_0.1.3_aarch64.dmg) | 打开 DMG，将 QuotaMate 拖入“应用程序” |
-| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.3_amd64.deb` / `.AppImage` | 推荐 `sudo apt install ./QuotaMate_0.1.3_amd64.deb`；见 [Ubuntu 说明](docs/ubuntu-first-run.md) |
+| Windows | Windows 10/11 x64 | [0.1.4 安装包](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.4/QuotaMate_0.1.4_x64-setup.exe) | 运行安装程序；也可下载同版本免安装 EXE |
+| macOS | macOS 10.15+，Apple Silicon | [0.1.4 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.4/QuotaMate_0.1.4_aarch64.dmg) | 打开 DMG，将 QuotaMate 拖入“应用程序” |
+| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.4_amd64.deb` / `.AppImage` | 推荐 `sudo apt install ./QuotaMate_0.1.4_amd64.deb`；见 [Ubuntu 说明](docs/ubuntu-first-run.md) |
 
 运行前请确保 Codex CLI 或包含 Codex CLI 的 Codex 桌面应用已经安装并登录。Windows 还需要 WebView2 Runtime（多数 Windows 10/11 设备已预装）；macOS 使用系统 WebKit。
 
