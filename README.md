@@ -232,12 +232,14 @@ pnpm tauri:build:windows
 建议在 Ubuntu 22.04 LTS 上构建，以兼容 22.04 和 24.04。安装系统开发依赖及通用依赖后运行：
 
 ```bash
-sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf python3 squashfs-tools
 pnpm install --frozen-lockfile
 pnpm tauri:build:linux
 ```
 
 产物写入 `artifacts/linux-x64/`，包括 `.deb`、AppImage、SHA-256 和首次使用说明。Tauri 自动加载 Linux 专用配置，Windows/macOS 打包配置保持原样。
+
+Linux 打包前会校验官方 AppRun 启动器的 SHA-256，并将缓存权限设为 `0755`。打包后通过 `unsquashfs` 检查 AppImage 内保存的原始权限，确保启动器、程序和目录可供其他用户读取及执行；检查失败时不会导出该 AppImage。解压运行可能改变权限，因此不能替代此检查。
 
 GitHub Actions 从同一份源码构建 Windows x64、Apple Silicon macOS 和 Ubuntu x64，并在 Ubuntu 24.04 上安装验证。所有平台通过检查后，在同一个 Release 中发布；可为已有标签补齐缺少的平台安装包，已有安装包不会被替换。`SHA256SUMS` 统一列出所有平台安装包的校验值。也可手动运行工作流，仅构建或选择发布。
 
