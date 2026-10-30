@@ -284,6 +284,9 @@ fn advance(window: &gtk::Window, controller: &SharedController) {
                 // Grow before moving so expansion keeps the pointer inside.
                 arm_watchdog(window, controller);
                 window.resize(target.width, target.height);
+                // resize() queues frame-clock layout. Flush it now so an
+                // occluded window submits its request before the ACK timeout.
+                window.check_resize();
                 return;
             }
             Step::Apply(Transition::Moving(target)) => {
