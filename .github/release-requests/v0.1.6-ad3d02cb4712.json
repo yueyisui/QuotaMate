@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "version": "0.1.6",
+  "publish": true,
+  "source_sha": "ad3d02cb4712757564df8fe11e64305334446625",
+  "source_tree": "a84c03ccb7ee9160c50cb37e161fd3784bd805ac",
+  "authorization": {
+    "publish_release": true,
+    "requested_by": "repository owner via this Codex task",
+    "statement": "The user explicitly requested publishing the latest validated version with the smallest appropriate version increment on 2026-11-01."
+  },
+  "desktop_validation": {
+    "passed": true,
+    "environment": "Ubuntu 22.04; GNOME/X11; NVIDIA desktop; WebKitGTK 2.50.4",
+    "deb": {
+      "file": "QuotaMate_0.1.6_amd64.deb",
+      "sha256": "3e5d9d6a99825b169452e816bba11360eb38ba8fbb818e1a12f12a3b25c18156",
+      "passed": 32,
+      "total": 32,
+      "report": "docs/releases/v0.1.6-desktop-checks.json#packages.deb",
+      "report_sha256": "33fc5e888529bb179f95cd8c7f8f5239ecda29159231678a75113e61e8943c45"
+    },
+    "appimage": {
+      "file": "QuotaMate_0.1.6_amd64.AppImage",
+      "sha256": "7818712e23c4adfa837427059a687a416e62532af4c52f2414927630e621be07",
+      "passed": 32,
+      "total": 32,
+      "report": "docs/releases/v0.1.6-desktop-checks.json#packages.appimage",
+      "report_sha256": "fc5bd41c7fb5470013744c808b7bf5daeaf803555d512c2c746673674ed3af5d"
+    }
+  },
+  "supersedes_failed_ci": "https://github.com/yueyisui/QuotaMate/actions/runs/41285192781"
+}
