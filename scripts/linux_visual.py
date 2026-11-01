@@ -40,6 +40,7 @@ from gi.repository import GLib
 from PIL import Image, ImageChops, ImageDraw
 
 from linux_smoke import MOCK_CODEX, Watcher
+from visual_config_snapshot import read_config_snapshot, stable_config_snapshot
 
 
 BACKGROUND = (22, 39, 58)
@@ -495,23 +496,16 @@ def run(args):
                 return str(pet) in result.stdout.splitlines()
 
             def stable_native_position(expected, size=(200, 200)):
-                stable_since = None
-
-                def matches():
-                    nonlocal stable_since
+                def matches(snapshot):
                     actual = geometry(pet)
-                    saved = json.loads(config.read_text()).get("petPosition") or {}
+                    saved = snapshot.get("petPosition") or {}
                     report["lastGeometryObservation"] = {"native": actual, "savedPosition": saved,
                                                          "expectedPosition": expected, "expectedSize": list(size)}
                     valid = actual["X"] == expected["x"] and actual["Y"] == expected["y"] and saved == expected
                     valid = valid and (actual["WIDTH"], actual["HEIGHT"]) == size
-                    if not valid:
-                        stable_since = None
-                        return False
-                    stable_since = stable_since or time.monotonic()
-                    return time.monotonic() - stable_since >= 0.6
+                    return valid
 
-                return matches
+                return stable_config_snapshot(config, matches, stable_seconds=0.6)
             wait(lambda: commands.run("return !!document.querySelector('.pet-character');"), "rendered pet DOM", app)
             commands.patch(petPreset="car", petScale=1, opacity=0.65)
             commands.pause(True)
@@ -694,8 +688,9 @@ return true;
             if "pet" in locals():
                 report["failureGeometry"] = geometry(pet)
             if "config" in locals():
-                report["failureSavedPosition"] = (json.loads(config.read_text()).get("petPosition")
-                                                   if config.exists() else report.get("lastGeometryObservation", {}).get("savedPosition"))
+                snapshot = read_config_snapshot(config)
+                report["failureSavedPosition"] = (snapshot.get("petPosition") if snapshot is not None
+                                                   else report.get("lastGeometryObservation", {}).get("savedPosition"))
         except Exception as diagnostic_error:
             report["diagnosticError"] = str(diagnostic_error)
         traceback.print_exc()

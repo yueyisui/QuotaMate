@@ -366,5 +366,6 @@
   },
   "runtimeSourceBase": "7ad10da3488c96d0fe4cb1273a20770b64ca3b43",
   "runtimeChangesSinceBase": "Only application version metadata; frontend and backend runtime source unchanged.",
-  "testHarnessSha256": "7c46d24686b1ef4c6336e869db8228308a8678c22546457d468aa17c80a03932"
+  "physicalRunTestHarnessSha256": "7c46d24686b1ef4c6336e869db8228308a8678c22546457d468aa17c80a03932",
+  "subsequentTestHarnessChange": "External config polling waits for complete JSON during concurrent truncate/write, and restarts the unchanged 0.6 second stability interval. The 30 second deadline, pixel tolerances and all 32 assertions remain unchanged."
 }

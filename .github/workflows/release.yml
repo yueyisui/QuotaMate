@@ -43,6 +43,8 @@ jobs:
           fetch-depth: 0
       - name: Test explicit release request gates
         run: python3 -m unittest discover -s scripts -p 'test_release_request.py' -v
+      - name: Test visual configuration snapshot polling
+        run: python3 -m unittest discover -s scripts -p 'test_visual_config_snapshot.py' -v
       - name: Select one source commit for every platform
         id: source
         env:
