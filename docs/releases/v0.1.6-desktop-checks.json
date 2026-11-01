@@ -1,0 +1,370 @@
+{
+  "version": "0.1.6",
+  "date": "2026-11-01",
+  "environment": "Ubuntu 22.04; GNOME/X11; NVIDIA desktop; WebKitGTK 2.50.4",
+  "scope": "Actual local Debian and original AppImage on the unlocked physical desktop. Private fake Codex account; no real account or scheduled tasks. Package hashes identify the local acceptance builds. Published CI builds are rebuilt from the pinned source; use Release SHA256SUMS for their download hashes.",
+  "packages": {
+    "deb": {
+      "file": "QuotaMate_0.1.6_amd64.deb",
+      "localPackageSha256": "3e5d9d6a99825b169452e816bba11360eb38ba8fbb818e1a12f12a3b25c18156",
+      "testedExecutableOrImageSha256": "317d344b99079b9ae6add30df5d01abfb70b25d82e5566b026f12d3c6202394a",
+      "reportSha256": "33fc5e888529bb179f95cd8c7f8f5239ecda29159231678a75113e61e8943c45",
+      "passed": 32,
+      "total": 32,
+      "physicalDesktop": true,
+      "nativeWindowOwnershipVerified": true,
+      "inheritedRenderingOverrides": {
+        "WEBKIT_DISABLE_DMABUF_RENDERER": null,
+        "WEBKIT_DISABLE_COMPOSITING_MODE": null,
+        "LIBGL_ALWAYS_SOFTWARE": null,
+        "QUOTAMATE_VISUAL_FORCE_REDRAW": null,
+        "QUOTAMATE_VISUAL_EXTRA_PRELOAD": null,
+        "QUOTAMATE_VISUAL_HARDWARE_POLICY": null
+      },
+      "checks": [
+        {
+          "name": "visible pet produces non-background pixels",
+          "passed": true
+        },
+        {
+          "name": "car is unchanged after switching through other pets",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "switching pets leaves no pixels when content is hidden",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "built-in CSS animation continues changing visible pixels",
+          "passed": true
+        },
+        {
+          "name": "animation leaves no pixels when content is hidden",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "moving the animated pet leaves no residual pixels",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=0.7, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=0.7, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=0.7, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=0.7, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=0.7, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=0.7, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1.5, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1.5, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1.5, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1.5, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1.5, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1.5, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "18 rapid preset changes preserve the final car pixels",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "rapid preset changes leave no residual pixels",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "scale roundtrip preserves exact native and saved position",
+          "passed": true
+        },
+        {
+          "name": "rapid expand/collapse preserves exact native and saved position",
+          "passed": true
+        },
+        {
+          "name": "preset changes followed by immediate hide/reopen preserve position",
+          "passed": true
+        },
+        {
+          "name": "custom transparent GIF continues animating",
+          "passed": true
+        },
+        {
+          "name": "custom transparent GIF leaves no residual pixels",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "app remains alive after visual stress",
+          "passed": true
+        }
+      ]
+    },
+    "appimage": {
+      "file": "QuotaMate_0.1.6_amd64.AppImage",
+      "localPackageSha256": "7818712e23c4adfa837427059a687a416e62532af4c52f2414927630e621be07",
+      "testedExecutableOrImageSha256": "7818712e23c4adfa837427059a687a416e62532af4c52f2414927630e621be07",
+      "reportSha256": "fc5bd41c7fb5470013744c808b7bf5daeaf803555d512c2c746673674ed3af5d",
+      "passed": 32,
+      "total": 32,
+      "physicalDesktop": true,
+      "nativeWindowOwnershipVerified": true,
+      "inheritedRenderingOverrides": {
+        "WEBKIT_DISABLE_DMABUF_RENDERER": null,
+        "WEBKIT_DISABLE_COMPOSITING_MODE": null,
+        "LIBGL_ALWAYS_SOFTWARE": null,
+        "QUOTAMATE_VISUAL_FORCE_REDRAW": null,
+        "QUOTAMATE_VISUAL_EXTRA_PRELOAD": null,
+        "QUOTAMATE_VISUAL_HARDWARE_POLICY": null
+      },
+      "checks": [
+        {
+          "name": "visible pet produces non-background pixels",
+          "passed": true
+        },
+        {
+          "name": "car is unchanged after switching through other pets",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "switching pets leaves no pixels when content is hidden",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "built-in CSS animation continues changing visible pixels",
+          "passed": true
+        },
+        {
+          "name": "animation leaves no pixels when content is hidden",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "moving the animated pet leaves no residual pixels",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=0.7, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=0.7, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=0.7, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=0.7, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=0.7, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=0.7, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1.5, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1.5, opacity=0.35",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1.5, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1.5, opacity=0.65",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "preset roundtrip at scale=1.5, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "alpha clears at scale=1.5, opacity=1",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "18 rapid preset changes preserve the final car pixels",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "rapid preset changes leave no residual pixels",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "scale roundtrip preserves exact native and saved position",
+          "passed": true
+        },
+        {
+          "name": "rapid expand/collapse preserves exact native and saved position",
+          "passed": true
+        },
+        {
+          "name": "preset changes followed by immediate hide/reopen preserve position",
+          "passed": true
+        },
+        {
+          "name": "custom transparent GIF continues animating",
+          "passed": true
+        },
+        {
+          "name": "custom transparent GIF leaves no residual pixels",
+          "passed": true,
+          "differentPixels": 0
+        },
+        {
+          "name": "app remains alive after visual stress",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "localInteractionChecks": {
+    "debianSingleCpu": {
+      "passed": 123,
+      "total": 123,
+      "manualLayoutChecks": 198,
+      "pausedManualLayoutChecks": 0
+    },
+    "appimageTwoCpu": {
+      "passed": 122,
+      "total": 122
+    },
+    "watchdogRecoveries": 0
+  },
+  "runtimeSourceBase": "7ad10da3488c96d0fe4cb1273a20770b64ca3b43",
+  "runtimeChangesSinceBase": "Only application version metadata; frontend and backend runtime source unchanged.",
+  "testHarnessSha256": "7c46d24686b1ef4c6336e869db8228308a8678c22546457d468aa17c80a03932"
+}

@@ -13,6 +13,7 @@ on:
       - 'src-tauri/**'
       - 'scripts/**'
       - 'docs/releases/**'
+      - '.github/release-requests/**'
       - '.github/workflows/release.yml'
   workflow_dispatch:
     inputs:
@@ -35,10 +36,13 @@ jobs:
       source_sha: ${{ steps.source.outputs.source_sha }}
       tag: ${{ steps.source.outputs.tag }}
       publish: ${{ steps.source.outputs.publish }}
+      publish_mode: ${{ steps.source.outputs.publish_mode }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      - name: Test explicit release request gates
+        run: python3 -m unittest discover -s scripts -p 'test_release_request.py' -v
       - name: Select one source commit for every platform
         id: source
         env:
@@ -48,14 +52,22 @@ jobs:
           TAG="v$VERSION"
           SOURCE_SHA="$GITHUB_SHA"
           PUBLISH=false
+          PUBLISH_MODE=none
           if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "$TAG" ]]; then
             echo "Tag does not match package version" >&2
             exit 1
           fi
-          # A successful build is a candidate, not approval to publish. Main and
-          # tag pushes only build/test; publication requires an explicit run.
+          # Ordinary pushes only build candidates. A separately committed,
+          # source-bound request is an explicit alternative to manual dispatch.
+          REQUEST_SOURCE=$(python3 scripts/check_release_request.py)
+          if [[ -n "$REQUEST_SOURCE" ]]; then
+            SOURCE_SHA="$REQUEST_SOURCE"
+            PUBLISH=true
+            PUBLISH_MODE=request
+          fi
           if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$PUBLISH_REQUESTED" == true ]]; then
             PUBLISH=true
+            PUBLISH_MODE=manual
             if git show-ref --verify --quiet "refs/tags/$TAG"; then
               if git diff --quiet "$TAG" "$GITHUB_SHA" -- package.json pnpm-lock.yaml vite.config.ts src src-tauri scripts docs/macos-first-run.txt; then
                 # Fill missing platform packages from the original tagged code.
@@ -63,6 +75,7 @@ jobs:
               else
                 # Validate new code, but never attach it to an older version.
                 PUBLISH=false
+                PUBLISH_MODE=none
                 echo "Application code differs from $TAG; bump the version before publishing."
               fi
             fi
@@ -70,6 +83,7 @@ jobs:
           echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+          echo "publish_mode=$PUBLISH_MODE" >> "$GITHUB_OUTPUT"
 
   build:
     name: Ubuntu 22.04 x64
@@ -272,6 +286,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           name: ubuntu-x64
@@ -290,6 +307,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare.outputs.tag }}
           SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+          PUBLISH_MODE: ${{ needs.prepare.outputs.publish_mode }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
           test -f "docs/releases/$TAG.md"
@@ -299,7 +317,19 @@ jobs:
           for platform in ubuntu-x64 windows-x64 macos-arm64; do
             (cd "artifacts/$platform"; sha256sum -c SHA256SUMS*)
           done
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
+          if [[ "$PUBLISH_MODE" == request ]]; then
+            # Revalidate after all platform tests; never reuse a tag/release.
+            python3 scripts/check_release_request.py --expected-source "$SOURCE_SHA"
+            gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[].tag_name' > /tmp/quotamate-existing-releases
+            if grep -Fxq "$TAG" /tmp/quotamate-existing-releases; then
+              echo "Explicit requests cannot reuse an existing release" >&2
+              exit 1
+            fi
+            # Creating the ref is atomic: a concurrent publisher cannot cause
+            # this request to attach packages to a tag they created first.
+            gh api --method POST "repos/$GH_REPO/git/refs" -f "ref=refs/tags/$TAG" -f "sha=$SOURCE_SHA"
+            gh release create "$TAG" --verify-tag --draft --title "QuotaMate $TAG" --notes-file "docs/releases/$TAG.md"
+          elif ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --target "$SOURCE_SHA" --draft --title "QuotaMate $TAG" --notes-file "docs/releases/$TAG.md"
           fi
           gh release view "$TAG" --json assets --jq '.assets[].name' > /tmp/quotamate-existing-assets
@@ -322,3 +352,14 @@ jobs:
           (cd published; sha256sum "QuotaMate_${VERSION}_amd64.deb" "QuotaMate_${VERSION}_amd64.AppImage" > ../SHA256SUMS-linux-x64.txt)
           gh release upload "$TAG" SHA256SUMS SHA256SUMS-linux-x64.txt --clobber
           gh release edit "$TAG" --draft=false --latest --title "QuotaMate $TAG" --notes-file "docs/releases/$TAG.md"
+      - name: Mark affected older Ubuntu pet releases
+        if: needs.prepare.outputs.tag != 'v0.1.4' && needs.prepare.outputs.tag != 'v0.1.5'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for OLD_TAG in v0.1.4 v0.1.5; do
+            gh release view "$OLD_TAG" --json body > "/tmp/quotamate-$OLD_TAG-body.json"
+            python3 scripts/legacy_release_warning.py "/tmp/quotamate-$OLD_TAG-body.json" "/tmp/quotamate-$OLD_TAG-notes.md"
+            gh release edit "$OLD_TAG" --notes-file "/tmp/quotamate-$OLD_TAG-notes.md"
+          done

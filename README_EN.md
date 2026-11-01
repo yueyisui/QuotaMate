@@ -118,9 +118,9 @@ Open [GitHub Releases](https://github.com/yueyisui/QuotaMate/releases/latest) an
 
 | Platform | Current support | Recommended file | Installation |
 | --- | --- | --- | --- |
-| Windows | Windows 10/11 x64 | [0.1.5 installer](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.5/QuotaMate_0.1.5_x64-setup.exe) | Run the installer, or use the portable EXE from the same release |
-| macOS | macOS 10.15+, Apple Silicon | [0.1.5 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.5/QuotaMate_0.1.5_aarch64.dmg) | Open the DMG and drag QuotaMate into Applications |
-| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.5_amd64.deb` / `.AppImage` | Prefer `sudo apt install ./QuotaMate_0.1.5_amd64.deb`; see [Ubuntu setup](docs/ubuntu-first-run.md) |
+| Windows | Windows 10/11 x64 | [0.1.6 installer](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.6/QuotaMate_0.1.6_x64-setup.exe) | Run the installer, or use the portable EXE from the same release |
+| macOS | macOS 10.15+, Apple Silicon | [0.1.6 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.6/QuotaMate_0.1.6_aarch64.dmg) | Open the DMG and drag QuotaMate into Applications |
+| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.6_amd64.deb` / `.AppImage` | Prefer `sudo apt install ./QuotaMate_0.1.6_amd64.deb`; see [Ubuntu setup](docs/ubuntu-first-run.md) |
 
 Before launching, make sure the Codex CLI—or a Codex desktop app that includes it—is installed and signed in. Windows also requires the WebView2 Runtime (already present on most Windows 10/11 systems); macOS uses the system WebKit.
 
@@ -241,11 +241,11 @@ Packages, SHA-256 checksums and first-run notes are written to `artifacts/linux-
 
 Before bundling, the Linux hook verifies the official AppRun launcher's SHA-256 and sets its cached mode to `0755`. After bundling, `unsquashfs` checks the original permissions stored in the AppImage so other users can read files, execute launchers and traverse directories. An AppImage that fails is not exported. Extract-and-run can change permissions and does not replace this check.
 
-GitHub Actions builds Windows x64, Apple Silicon macOS, and Ubuntu x64 from the same source, and validates the installed Linux app on Ubuntu 24.04. Main pushes, version-tag pushes, and ordinary manual runs produce candidate packages without publishing. Download candidates from the corresponding workflow's Artifacts.
+GitHub Actions builds Windows x64, Apple Silicon macOS, and Ubuntu x64 from the same source, and validates the installed Linux app on Ubuntu 24.04. Ordinary main pushes, version-tag pushes and manual runs without publication selected produce candidate packages. Download candidates from the corresponding workflow's Artifacts.
 
 Ubuntu 22.04 and 24.04 also check composited Debian and AppImage pet pixels under Xvfb, Openbox, and xcompmgr, covering pet switches, continuous animation, movement, and transparent-area clearing. Screenshots, results, and isolated logs are retained on success or failure in the `linux-visual-ubuntu-22` / `linux-visual-ubuntu-24` Artifacts. Tests use fake Codex responses without accessing a real account.
 
-Before publishing, validate transparency, continuous animation without trails, rapid pet switching, dragging, scaling, expansion/collapse, and close/reopen on a real Ubuntu desktop compositor. NVIDIA fixes also require validation on the affected GPU. Xvfb smoke tests and a running process do not replace these visual checks. After validating candidates from the same source commit, manually run the workflow with `publish` explicitly selected. All platform checks must pass before publishing in one release. Missing platform packages can be added to an existing tag without replacing existing installers. `SHA256SUMS` covers every platform's installers.
+Before publishing, validate transparency, continuous animation without trails, rapid pet switching, dragging, scaling, expansion/collapse, and close/reopen on a real Ubuntu desktop compositor. NVIDIA fixes also require validation on the affected GPU. Xvfb smoke tests and a running process do not replace these visual checks. After validating candidates from the same source commit, the default publication route is a manual run with `publish` explicitly selected. Alternatively, a main push may add `.github/release-requests/vVERSION-SOURCE12.json`, recording explicit publication authorization, the pinned source commit/tree, both Linux package SHA-256 values and all 32 real-desktop checks for each package. Outside that directory the request tree must equal the pinned source, all four versions and release notes must match, and an existing tag is rejected. An old or modified request cannot trigger publication. Both routes require all platform checks to pass. The manual route can fill missing platform packages on an existing tag without replacing installers; requests only create new versions. `SHA256SUMS` covers every platform's installers. After publication, the original v0.1.4/v0.1.5 notes receive an Ubuntu pet warning linking to the latest release; their original notes and assets remain available.
 
 ### Checks
 

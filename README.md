@@ -118,9 +118,9 @@ QuotaMate 是一个轻量的 Codex 额度助手。它读取本机 Codex CLI 返�
 
 | 平台 | 当前支持 | 推荐文件 | 安装方式 |
 | --- | --- | --- | --- |
-| Windows | Windows 10/11 x64 | [0.1.5 安装包](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.5/QuotaMate_0.1.5_x64-setup.exe) | 运行安装程序；也可下载同版本免安装 EXE |
-| macOS | macOS 10.15+，Apple Silicon | [0.1.5 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.5/QuotaMate_0.1.5_aarch64.dmg) | 打开 DMG，将 QuotaMate 拖入“应用程序” |
-| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.5_amd64.deb` / `.AppImage` | 推荐 `sudo apt install ./QuotaMate_0.1.5_amd64.deb`；见 [Ubuntu 说明](docs/ubuntu-first-run.md) |
+| Windows | Windows 10/11 x64 | [0.1.6 安装包](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.6/QuotaMate_0.1.6_x64-setup.exe) | 运行安装程序；也可下载同版本免安装 EXE |
+| macOS | macOS 10.15+，Apple Silicon | [0.1.6 DMG](https://github.com/yueyisui/QuotaMate/releases/download/v0.1.6/QuotaMate_0.1.6_aarch64.dmg) | 打开 DMG，将 QuotaMate 拖入“应用程序” |
+| Ubuntu | 22.04 / 24.04 LTS x64 | `QuotaMate_0.1.6_amd64.deb` / `.AppImage` | 推荐 `sudo apt install ./QuotaMate_0.1.6_amd64.deb`；见 [Ubuntu 说明](docs/ubuntu-first-run.md) |
 
 运行前请确保 Codex CLI 或包含 Codex CLI 的 Codex 桌面应用已经安装并登录。Windows 还需要 WebView2 Runtime（多数 Windows 10/11 设备已预装）；macOS 使用系统 WebKit。
 
@@ -241,11 +241,11 @@ pnpm tauri:build:linux
 
 Linux 打包前会校验官方 AppRun 启动器的 SHA-256，并将缓存权限设为 `0755`。打包后通过 `unsquashfs` 检查 AppImage 内保存的原始权限，确保启动器、程序和目录可供其他用户读取及执行；检查失败时不会导出该 AppImage。解压运行可能改变权限，因此不能替代此检查。
 
-GitHub Actions 从同一份源码构建 Windows x64、Apple Silicon macOS 和 Ubuntu x64，并在 Ubuntu 24.04 上安装验证。推送到 main、推送版本标签和普通手动运行只生成候选安装包，不会自动发布。候选包可在对应工作流的 Artifacts 中下载。
+GitHub Actions 从同一份源码构建 Windows x64、Apple Silicon macOS 和 Ubuntu x64，并在 Ubuntu 24.04 上安装验证。普通 main 推送、版本标签推送和未勾选发布的手动运行只生成候选安装包。候选包可在对应工作流的 Artifacts 中下载。
 
 Ubuntu 22.04 和 24.04 还会在 Xvfb、Openbox 与 xcompmgr 下，对 Debian 和 AppImage 宠物窗口的合成画面做像素检查，覆盖宠物切换、连续动画、移动和透明区域清除。成功或失败的截图、结果与隔离日志保存在 `linux-visual-ubuntu-22` / `linux-visual-ubuntu-24` Artifacts 中；测试使用模拟 Codex，不读取真实账号。
 
-正式发布前，须在真实 Ubuntu 桌面合成器下验证透明背景、连续动画无残影、快速切换宠物、拖动、缩放、展开收起和关闭重开；涉及 NVIDIA 的修复还须在对应显卡环境验证。Xvfb 冒烟测试和进程未退出不能替代这些画面检查。验证同一份源码的候选包后，才手动运行工作流并明确勾选 `publish`；所有平台检查通过后，在同一个 Release 中发布。可为已有标签补齐缺少的平台安装包，已有安装包不会被替换。`SHA256SUMS` 统一列出所有平台安装包的校验值。
+正式发布前，须在真实 Ubuntu 桌面合成器下验证透明背景、连续动画无残影、快速切换宠物、拖动、缩放、展开收起和关闭重开；涉及 NVIDIA 的修复还须在对应显卡环境验证。Xvfb 冒烟测试和进程未退出不能替代这些画面检查。验证同一份源码的候选包后，默认手动运行工作流并明确勾选 `publish`。也可在 main 推送中新增 `.github/release-requests/v版本-源码SHA前12位.json`，显式记录发布授权、固定源码提交及完整树、两种 Linux 包的 SHA-256 和各 32 项真实桌面验收结果；请求提交除该目录外须与固定源码完全一致，四处版本及发布说明须匹配，已有标签会被拒绝。旧请求或修改旧请求不能触发发布。两种入口均须所有平台检查通过后才发布。手动入口可为已有标签补齐缺少的平台安装包，已有安装包不会被替换；请求入口只创建新版本。`SHA256SUMS` 统一列出所有平台安装包的校验值。新版本发布后，会在 v0.1.4/v0.1.5 的原说明顶部标注 Ubuntu 宠物已知问题并指向最新版，保留原说明及安装包。
 
 ### 验证
 

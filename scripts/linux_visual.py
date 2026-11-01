@@ -451,9 +451,22 @@ def run(args):
             def test_pet_window():
                 try:
                     xid = str(int((home / "command.js.window").read_text()))
-                    return xid if xdo("getwindowgeometry", xid, check=False).returncode == 0 else None
                 except (FileNotFoundError, ValueError):
                     return None
+                if xdo("getwindowgeometry", xid, check=False).returncode != 0:
+                    return None
+                owner = xdo("getwindowpid", xid, check=False)
+                try:
+                    owner_pid = int(owner.stdout.strip())
+                    owned = owner.returncode == 0 and owner_pid > 0 and (
+                        owner_pid == app.pid or os.getpgid(owner_pid) == app.pid)
+                except (ValueError, ProcessLookupError, PermissionError):
+                    owned = False
+                if not owned:
+                    raise RuntimeError("Probe pet window does not belong to the isolated test process group")
+                report["petWindowOwnerVerified"] = True
+                report["petWindowOwnerPid"] = owner_pid
+                return xid
 
             pet = wait(test_pet_window, "isolated test pet's native window", app)
             commands = Commands(home / "command.js", app, pet)
